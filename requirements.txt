@@ -1,0 +1,15 @@
+# This file lists the dependencies required to run the PostureApp project.
+# Install these dependencies using pip install -r requirements.txt
+
+PyQt6
+opencv-contrib-python
+mediapipe
+numpy
+matplotlib
+requests
+python-dotenv
+supabase
+Pillow
+scipy
+sounddevice
+edge-tts 
