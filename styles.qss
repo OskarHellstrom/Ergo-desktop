@@ -4,8 +4,8 @@
 QWidget {
     background-color: #1A1A2E; /* Default: deepCharcoal */
     color: #F0F0F5;          /* Default: offWhite */
-    font-family: "Segoe UI", Arial, sans-serif; /* Modern sans-serif font */
-    font-size: 10pt; /* Base font size */
+    font-family: "Inter", "Segoe UI", Arial, sans-serif; /* Modern sans-serif font stack */
+    font-size: 11pt; /* Base font size increased */
 }
 
 QMainWindow, QDialog {
@@ -38,60 +38,88 @@ QGroupBox::title {
 /* Text Hierarchy */
 QLabel#H1Title {
     color: #E0DFFF; /* highlightWhiteLilac */
-    font-size: 24pt;
+    font-size: 22pt; /* Adjusted for new base */
     font-weight: bold;
-    padding-bottom: 10px; /* Space below H1 */
+    padding-bottom: 12px; /* Space below H1 */
+    margin-bottom: 10px; /* Added margin */
 }
 
 QLabel#H2Title, QLabel.SectionTitle {
     color: #F0F0F5; /* offWhite */
-    font-size: 16pt; /* Adjusted from 18pt for better balance */
+    font-size: 15pt; /* Adjusted for new base */
     font-weight: 600; /* semi-bold */
-    padding-top: 5px;
-    padding-bottom: 5px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #3C3C50; /* Subtle separator for section titles */
+    margin-top: 10px; /* Added margin */
+    margin-bottom: 5px; /* Added margin */
 }
 
 QLabel.BodyPrimary {
     color: #F0F0F5; /* offWhite */
-    font-size: 11pt; /* Adjusted from 12pt */
+    font-size: 11pt; /* Aligned with base */
 }
 
 QLabel.BodySecondary, QLabel.Caption {
     color: #B0B0C0; /* lightGray */
-    font-size: 9pt;  /* Adjusted from 10pt */
+    font-size: 10pt;  /* Adjusted relative to new base */
+}
+
+/* Styling for QLabel used as a link */
+QLabel a {
+    color: #8AAEFF; /* A lighter, friendly blue for links */
+    text-decoration: none; /* Remove underline by default */
+}
+
+QLabel a:hover {
+    color: #A8C5FF; /* Brighter on hover */
+    text-decoration: underline; /* Underline on hover for affordance */
+}
+
+/* Error Text Styling */
+.ErrorText, QLabel#ErrorLabel {
+    color: #FF6B6B; /* A clear but not overly harsh red */
+    font-size: 9.5pt;
+    font-weight: 500;
+    /* Add padding or margin if needed, or handle in layout */
+    /* padding: 5px; */
 }
 
 /* Buttons */
 QPushButton {
     background-color: #3C3C50; /* lightDarkGray */
     color: #F0F0F5; /* offWhite */
-    border: 1px solid #7B61FF; /* purple outline */
-    padding: 8px 16px;
-    border-radius: 6px; /* Slightly more rounded */
-    min-height: 2em;
+    border: 1px solid #4A4A60; /* Subtle border for default buttons */
+    padding: 9px 18px; /* Increased padding */
+    border-radius: 8px; /* Slightly more rounded */
+    min-height: 2.3em; /* Increased min-height for better touch */
     font-weight: 500; /* Medium weight */
+    /* Basic transition placeholder - actual transitions are hard in QSS */
+    /* transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out; */
 }
 
 QPushButton:hover {
-    background-color: #4a4a60; /* Slightly lighter gray */
-    border-color: #937FFF; /* Lighter purple */
+    background-color: #45455A; /* Slightly lighter gray for hover */
+    border-color: #55556F; /* Darker border on hover */
 }
 
 QPushButton:pressed {
-    background-color: #2D2D3F; /* mediumDarkGray */
+    background-color: #353548; /* Darker for press */
+    border-color: #4A4A60;
 }
 
 QPushButton:disabled {
     background-color: #2D2D3F;
     color: #6c6c7a;
-    border-color: #4A4A60;
+    border-color: #3C3C50; /* Darker border for disabled */
 }
 
 QPushButton#PrimaryCTA {
     background-color: #7B61FF; /* purple */
-    color: #F0F0F5; /* offWhite */
+    color: #FFFFFF; /* Brighter white for better contrast on purple */
     border: none;
-    font-weight: bold;
+    font-weight: 600; /* Bold for primary action */
+    padding: 10px 20px; /* Slightly more padding for primary */
 }
 
 QPushButton#PrimaryCTA:hover {
@@ -104,7 +132,23 @@ QPushButton#PrimaryCTA:pressed {
 
 QPushButton#PrimaryCTA:disabled {
     background-color: #4A3B99; /* Desaturated purple */
-    color: #988DE0;
+    color: #988DE0; /* Lighter text for disabled primary */
+    border: none;
+}
+
+/* Secondary Button Style (Example, use with objectName or dynamic property) */
+QPushButton.Secondary {
+    background-color: transparent;
+    color: #AEAEB5; /* Lighter text */
+    border: 1px solid #4A4A60;
+}
+QPushButton.Secondary:hover {
+    background-color: #353548; /* Subtle background on hover */
+    color: #F0F0F5;
+    border-color: #55556F;
+}
+QPushButton.Secondary:pressed {
+    background-color: #2D2D3F;
 }
 
 /* Input Fields */
@@ -112,14 +156,16 @@ QLineEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {
     background-color: #2D2D3F; /* mediumDarkGray */
     color: #F0F0F5; /* offWhite */
     border: 1px solid #3C3C50; /* lightDarkGray */
-    border-radius: 6px;
-    padding: 8px; /* Increased padding */
-    font-size: 10pt;
+    border-radius: 8px; /* Match button roundness */
+    padding: 10px; /* Increased padding for a modern feel */
+    font-size: 10pt; /* Slightly smaller for input fields or keep 11pt for consistency */
+    min-height: 2.3em; /* Match button height for visual rhythm */
 }
 
 QLineEdit:focus, QTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
     border: 1px solid #7B61FF; /* purple accent */
     background-color: #353548; /* Slightly lighter on focus */
+    /* box-shadow: 0 0 0 2px rgba(123, 97, 255, 0.3); */ /* Ideal, but box-shadow not in QSS */
 }
 
 QTextEdit {
@@ -156,7 +202,7 @@ QScrollBar:vertical {
 }
 QScrollBar::handle:vertical {
     background: #7B61FF; /* purple */
-    min-height: 25px; /* Slightly taller handle */
+    min-height: 30px; /* Slightly taller handle */
     border-radius: 6px;
 }
 QScrollBar::handle:vertical:hover {
@@ -179,7 +225,7 @@ QScrollBar:horizontal {
 }
 QScrollBar::handle:horizontal {
     background: #7B61FF; /* purple */
-    min-width: 25px;
+    min-width: 30px; /* Slightly wider handle */
     border-radius: 6px;
 }
 QScrollBar::handle:horizontal:hover {
@@ -197,13 +243,13 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 
 /* Tooltips */
 QToolTip {
-    background-color: #1A1A2E; /* deepCharcoal, same as main bg for contrast */
+    background-color: #222235; /* Slightly darker than main bg for contrast */
     color: #F0F0F5;           /* offWhite */
     border: 1px solid #7B61FF; /* purple accent */
-    padding: 8px;
-    border-radius: 4px;
-    font-size: 9pt;
-    opacity: 230; /* Slight transparency */
+    padding: 8px 12px; /* More horizontal padding */
+    border-radius: 6px; /* Consistent roundness */
+    font-size: 9.5pt; /* Clearer tooltip text */
+    opacity: 240; /* Slight transparency */
 }
 
 /* Tab Widget Styling */
@@ -217,10 +263,11 @@ QTabBar::tab {
     color: #B0B0C0;      /* lightGray */
     border: 1px solid #4A4A60;
     border-bottom: none; /* continuité with pane */
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
-    padding: 10px 20px;
+    border-top-left-radius: 8px; /* Match other roundness */
+    border-top-right-radius: 8px; /* Match other roundness */
+    padding: 12px 22px; /* Increased padding */
     margin-right: 2px; /* space between tabs */
+    font-weight: 500;
 }
 
 QTabBar::tab:selected, QTabBar::tab:hover {
@@ -237,13 +284,14 @@ QTabBar::tab:selected {
 QCheckBox, QRadioButton {
     spacing: 8px; /* Space between indicator and text */
     color: #F0F0F5;
+    background: transparent;
 }
 
 QCheckBox::indicator, QRadioButton::indicator {
-    width: 18px;
-    height: 18px;
+    width: 20px; /* Increased size */
+    height: 20px; /* Increased size */
     border: 2px solid #7B61FF; /* purple */
-    border-radius: 4px;
+    border-radius: 6px; /* More rounded */
     background-color: #2D2D3F; /* mediumDarkGray */
 }
 
@@ -264,19 +312,47 @@ QRadioButton::indicator {
 }
 
 QRadioButton::indicator:checked {
-    background-color: #7B61FF; /* purple fill */
-    border: 2px solid #7B61FF;
-    /* image: url(:/icons/radio-dot-white.svg); */ /* Inner dot for radio */
+    background-color: #7B61FF; /* Fill with accent color */
+    image: url(''); /* Remove default image if any, rely on background */
+}
+QRadioButton::indicator:checked::after { /* Custom checkmark (difficult in QSS without SVG) */
+    /* For a dot: */
+    /* content: '\2022'; */ /* Bullet character, needs font support */
+    /* display: block; */
+    /* position: absolute; */
+    /* top: 2px; left: 2px; right: 2px; bottom: 2px; */ /* Adjust for centering */
+    /* background-color: #FFFFFF; */
+    /* border-radius: 50%; */
 }
 
 /* Message Box Styling (Informational/Error popups) */
 QMessageBox {
-    background-color: #2D2D3F; /* mediumDarkGray */
+    background-color: #2D2D3F; /* Consistent with content panes */
+    border: 1px solid #4A4A60; /* Subtle border */
+    border-radius: 8px; /* Consistent rounding */
 }
 
 QMessageBox QLabel {
     color: #F0F0F5;
-    font-size: 10pt;
+    font-size: 11pt; /* Match base app font */
+    padding: 10px; /* Add some padding around the text */
+}
+
+QMessageBox QPushButton {
+    /* QPushButton styles are inherited, which is good. */
+    /* We can add specific overrides if needed, e.g., for button order or spacing */
+    min-width: 90px; /* Ensure buttons are adequately sized */
+    margin: 5px; /* Add some margin around buttons */
+}
+
+/* Ensure the icon in QMessageBox is visible against the dark background if it's a standard one */
+QMessageBoxStandardIcon#qt_msgboxexclam_icon,
+QMessageBoxStandardIcon#qt_msgboxinfo_icon,
+QMessageBoxStandardIcon#qt_msgboxwarn_icon,
+QMessageBoxStandardIcon#qt_msgboxcritical_icon {
+    /* This is tricky, as standard icons might not be easily stylable via QSS */
+    /* Best approach is to use custom icons in QMessageBox if default ones don't fit theme */
+    /* For now, this is a placeholder. Actual IDs might differ or might not be targetable. */
 }
 
 /* Item Views (Lists, Tables, Trees) */
@@ -301,11 +377,6 @@ QHeaderView::section {
 /* Specific for success/positive status */
 .SuccessText {
     color: #00C853; /* green */
-    font-weight: bold;
-}
-
-.ErrorText {
-    color: #FF5252; /* A suitable red for errors */
     font-weight: bold;
 }
 
@@ -335,15 +406,367 @@ QLabel.IconGlyph { /* Assuming icon glyphs inside featured containers are QLabel
 
 /* Custom Notification Toast Styling */
 QWidget#NotificationToastContainer {
-    background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(45, 45, 63, 240), stop:1 rgba(60, 60, 80, 240)); /* mediumDarkGray to lightDarkGray with alpha */
-    border-radius: 8px;
-    /* border: 1px solid #7B61FF; /* Optional accent border */
+    background-color: #28283A; /* Slightly different from main bg for pop */
+    border-radius: 10px; /* More prominent rounding */
+    border: 1px solid #7B61FF; /* Accent border */
+    /* Shadow is applied via QGraphicsDropShadowEffect in Python */
 }
 
 QLabel#NotificationToastMessage {
-    color: #F0F0F5; /* offWhite */
+    color: #F5F5F5; /* Brighter white */
+    font-size: 10.5pt; /* Slightly larger for readability */
+    padding: 8px; /* Internal padding */
+    font-weight: 500;
+}
+
+/* Slider Styles */
+QSlider::groove:horizontal {
+    border: 1px solid #3C3C50;
+    height: 8px; /* groove height */
+    background: #2D2D3F;
+    margin: 2px 0;
+    border-radius: 4px;
+}
+
+QSlider::handle:horizontal {
+    background: #7B61FF; /* purple */
+    border: 1px solid #7B61FF;
+    width: 18px; /* handle width */
+    height: 18px; /* handle height, make it slightly larger than groove */
+    margin: -5px 0; /* align handle vertically */
+    border-radius: 9px; /* circular handle */
+}
+QSlider::handle:horizontal:hover {
+    background: #937FFF;
+    border: 1px solid #937FFF;
+}
+
+QSlider::groove:vertical {
+    border: 1px solid #3C3C50;
+    width: 8px;
+    background: #2D2D3F;
+    margin: 0 2px;
+    border-radius: 4px;
+}
+
+QSlider::handle:vertical {
+    background: #7B61FF;
+    border: 1px solid #7B61FF;
+    height: 18px;
+    width: 18px;
+    margin: 0 -5px;
+    border-radius: 9px;
+}
+QSlider::handle:vertical:hover {
+    background: #937FFF;
+    border: 1px solid #937FFF;
+}
+
+/* Specific class styling for webcam label placeholder */
+QLabel#WebcamFeedLabel {
+    background-color: #252535; /* Slightly different dark shade for the feed area */
+    color: #808090; /* Placeholder text color */
+    border: 1px dashed #4A4A60; /* Dashed border to indicate it's a placeholder/feed area */
+    border-radius: 8px;
+}
+
+/* Login/Auth View specific styles (Example, if these ObjectNames are used) */
+QWidget#LoginViewContainer, QWidget#SignUpDialogContainer {
+    /* background-color: #242438; */ /* Slightly different background for auth pages if needed */
+}
+
+QLineEdit#EmailInput, QLineEdit#PasswordInput {
+    /* Specific styling for auth inputs if needed, e.g. icons inside */
+}
+
+/* Dashboard specific styles */
+QWidget#DashboardMainContent {
+    /* border: 1px solid red; */ /* For debugging layout */
+}
+
+QFrame#CameraViewFrame {
+    background-color: black; /* Typically camera feed has black background */
+    border-radius: 8px;
+    border: 1px solid #3C3C50;
+}
+
+QLabel#StatusIndicatorLabel {
+    font-weight: bold;
+    font-size: 12pt;
+    padding: 5px;
+    border-radius: 4px;
+}
+
+/* Status specific colors - apply these with dynamic properties in Python */
+/* QLabel[status="good"] { background-color: green; color: white; } */
+/* QLabel[status="bad"] { background-color: red; color: white; } */
+/* QLabel[status="calibrating"] { background-color: orange; color: black; } */
+
+/* Style for the QFrame that might hold stats or graphs */
+QFrame#StatsDisplayFrame {
+    background-color: #303042; /* A slightly distinct background for stats modules */
+    border-radius: 8px;
+    padding: 10px;
+}
+
+/* Update Notification Label Style */
+QLabel#UpdateNotificationLabel {
+    background-color: #3E4A6B; /* A calm blue/grey for info */
+    color: #E0EFFF; /* Light text for contrast */
+    border: 1px solid #506080;
+    border-radius: 6px;
+    padding: 10px 15px;
+    font-size: 10pt;
+    font-weight: 500;
+    margin-bottom: 10px; /* Space below it */
+}
+QLabel#UpdateNotificationLabel a {
+    color: #A8C5FF;
+    text-decoration: underline;
+}
+QLabel#UpdateNotificationLabel a:hover {
+    color: #FFFFFF;
+}
+
+/* Status Alert Label (for errors, warnings like webcam issues) */
+QLabel#StatusAlertLabel {
+    background-color: #6B3E3E; /* A muted red for alerts */
+    color: #FFDADA; /* Light reddish text */
+    border: 1px solid #805050;
+    border-radius: 6px;
+    padding: 10px 15px;
+    font-size: 10pt;
+    font-weight: 500;
+    margin-bottom: 10px; /* Space below it */
+}
+
+/* QGroupBox section titles for SettingsDialog */
+QGroupBox {
+    border: 1px solid #3C3C50;
+    border-radius: 8px;
+    margin-top: 18px;
+    margin-bottom: 18px;
+    padding: 12px 16px 16px 16px;
+    background-color: #23233A;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    color: #E0DFFF;
+    font-size: 13.5pt;
+    font-weight: 600;
+    padding: 0 0 8px 0;
+    margin-left: 2px;
+}
+
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+
+QLabel, QRadioButton, QCheckBox, QComboBox, QTextEdit, QLineEdit {
     font-size: 11pt;
-    font-weight: 500; /* Medium weight */
-    background-color: transparent; /* Ensure no double background from parent QWidget */
-    padding: 5px; /* Extra padding around text if needed, but container has padding */
-} 
+    color: #F0F0F5;
+}
+
+QTextEdit, QLineEdit {
+    background-color: #23233A;
+    border: 1px solid #3C3C50;
+    border-radius: 5px;
+    padding: 6px;
+}
+
+QComboBox {
+    background-color: #23233A;
+    border: 1px solid #3C3C50;
+    border-radius: 5px;
+    padding: 4px 8px;
+}
+
+QDialogButtonBox {
+    margin-top: 18px;
+}
+
+/* Section Description labels for SettingsDialog */
+QLabel#SectionDescription {
+    color: #B0B0C0;
+    font-size: 10.5pt;
+    font-weight: 400;
+    margin-bottom: 10px;
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+    qproperty-alignment: 'AlignHCenter';
+}
+
+/* QGroupBox section titles for SettingsDialog */
+QGroupBox {
+    border: 1px solid #3C3C50;
+    border-radius: 12px;
+    margin-top: 28px;
+    margin-bottom: 28px;
+    padding: 22px 24px 24px 24px;
+    background-color: #23233A;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    color: #E0DFFF;
+    font-size: 16pt;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    padding: 0 0 12px 0;
+    margin-left: 2px;
+    margin-bottom: 8px;
+}
+
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+
+QLabel, QRadioButton, QCheckBox, QComboBox, QTextEdit, QLineEdit {
+    font-size: 11pt;
+    color: #F0F0F5;
+}
+
+QTextEdit, QLineEdit {
+    background-color: #23233A;
+    border: 1px solid #3C3C50;
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-width: 180px;
+    max-width: 320px;
+}
+
+QComboBox {
+    background-color: #23233A;
+    border: 1px solid #3C3C50;
+    border-radius: 8px;
+    padding: 8px 14px;
+    min-width: 180px;
+    max-width: 260px;
+}
+
+QDialogButtonBox {
+    margin-top: 24px;
+    qproperty-centerButtons: true;
+}
+QDialogButtonBox QPushButton {
+    min-width: 160px;
+    max-width: 160px;
+    border-radius: 8px;
+    font-size: 11.5pt;
+    font-weight: 600;
+    margin: 0 10px;
+}
+QPushButton#PrimaryCTA, QDialogButtonBox QPushButton:default {
+    background-color: #7B61FF;
+    color: #FFFFFF;
+    border: none;
+    font-weight: 700;
+}
+QPushButton#PrimaryCTA:hover, QDialogButtonBox QPushButton:default:hover {
+    background-color: #6A50DD;
+}
+QPushButton#PrimaryCTA:pressed, QDialogButtonBox QPushButton:default:pressed {
+    background-color: #5840C0;
+}
+QPushButton.Secondary, QDialogButtonBox QPushButton {
+    background-color: #353548;
+    color: #AEAEB5;
+    border: 1px solid #4A4A60;
+    font-weight: 500;
+}
+QPushButton.Secondary:hover, QDialogButtonBox QPushButton:hover {
+    background-color: #45455A;
+    color: #F0F0F5;
+    border-color: #55556F;
+}
+QPushButton.Secondary:pressed, QDialogButtonBox QPushButton:pressed {
+    background-color: #2D2D3F;
+}
+
+/* Standardize button and input sizes, padding, and font */
+QPushButton, QLineEdit, QTextEdit, QComboBox {
+    min-height: 2.5em;
+    min-width: 160px;
+    font-size: 11pt;
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+    padding: 10px 16px;
+    border-radius: 8px;
+}
+
+/* Lighten secondary and disabled button backgrounds for clarity */
+QPushButton.Secondary, QDialogButtonBox QPushButton {
+    background-color: #39395A;
+    color: #AEAEB5;
+    border: 1px solid #4A4A60;
+    font-weight: 500;
+}
+QPushButton.Secondary:disabled, QDialogButtonBox QPushButton:disabled {
+    background-color: #2D2D3F;
+    color: #88889A;
+    border: 1px solid #3C3C50;
+}
+QPushButton:disabled {
+    background-color: #2D2D3F;
+    color: #88889A;
+    border: 1px solid #3C3C50;
+}
+
+/* Improve hover/active feedback for all buttons */
+QPushButton:hover, QDialogButtonBox QPushButton:hover {
+    background-color: #45456A;
+    color: #F0F0F5;
+    border-color: #7B61FF;
+}
+QPushButton:pressed, QDialogButtonBox QPushButton:pressed {
+    background-color: #353548;
+    color: #F0F0F5;
+}
+
+/* Inputs: lighter background, clear focus */
+QLineEdit, QTextEdit, QComboBox {
+    background-color: #23233A;
+    border: 1.5px solid #3C3C50;
+    color: #F0F0F5;
+    font-size: 11pt;
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
+    border: 1.5px solid #7B61FF;
+    background-color: #28284A;
+}
+QLineEdit:disabled, QTextEdit:disabled, QComboBox:disabled {
+    background-color: #2D2D3F;
+    color: #88889A;
+}
+
+/* Ensure all QLabel text wraps and is centered by default */
+QLabel {
+    qproperty-wordWrap: true;
+    qproperty-alignment: 'AlignHCenter | AlignVCenter';
+    background: transparent;
+}
+
+/* Section separation: more vertical space between QGroupBox */
+QGroupBox {
+    margin-top: 32px;
+    margin-bottom: 32px;
+    padding: 22px 24px 24px 24px;
+}
+QGroupBox::title {
+    margin-bottom: 12px;
+}
+
+/* Add tooltips for truncated text (handled in Python for dynamic content) */
+/* No QSS for tooltips on overflow, but ensure QToolTip is styled */
+QToolTip {
+    background-color: #222235;
+    color: #F0F0F5;
+    border: 1px solid #7B61FF;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 10pt;
+}

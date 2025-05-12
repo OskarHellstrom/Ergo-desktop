@@ -1,6 +1,6 @@
 import sys
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QStackedWidget, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QSpacerItem, QHBoxLayout, QDialog, QMessageBox, QRadioButton, QButtonGroup, QComboBox, QSlider, QDialogButtonBox, QSystemTrayIcon, QMenu, QStyle, QProgressDialog, QGraphicsDropShadowEffect, QGraphicsOpacityEffect
+    QApplication, QMainWindow, QStackedWidget, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QSizePolicy, QSpacerItem, QHBoxLayout, QDialog, QMessageBox, QRadioButton, QButtonGroup, QComboBox, QSlider, QDialogButtonBox, QSystemTrayIcon, QMenu, QStyle, QProgressDialog, QGraphicsDropShadowEffect, QGraphicsOpacityEffect, QCheckBox, QGroupBox, QFrame, QFormLayout, QScrollArea, QTextEdit
 )
 from PyQt6.QtCore import QSize, Qt, QUrl, QThread, pyqtSignal, QSettings, QTimer, QEvent, QPropertyAnimation, QEasingCurve, QRect, QPoint
 from PyQt6.QtGui import QPixmap, QFont, QCursor, QDesktopServices, QImage, QIcon, QAction, QColor
@@ -30,9 +30,13 @@ import time
 from requests.exceptions import ConnectionError
 
 POSE_MODEL_PATH = "PostureApp/models/pose_landmarker_heavy.task"
-DEFAULT_SENSITIVITY_DEGREES = 25
+# DEFAULT_SENSITIVITY_DEGREES = 25 # This is not directly used for the dynamic threshold
 CURRENT_APP_VERSION = "1.0.0"
 UPDATE_INFO_URL = "https://example.com/update-info.json"  # Replace with actual URL
+
+# New Constants for secondary posture checks - These will be removed/modified
+# SHOULDER_VERTICAL_DIFF_RATIO = 0.1  # 10% of inter-shoulder distance for vertical imbalance
+# HEAD_HORIZONTAL_SHIFT_RATIO = 0.1   # 10% of calibrated inter-shoulder distance for horizontal head shift
 
 # Set organization and app name for QSettings
 QSettings.setDefaultFormat(QSettings.Format.IniFormat)
@@ -136,9 +140,10 @@ class WebcamThread(QThread):
     new_frame_ready = pyqtSignal(QImage)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, camera_index=0, parent=None):
+    def __init__(self, camera_index=0, show_landmarks=True, parent=None):
         super().__init__(parent)
         self.camera_index = camera_index
+        self.should_draw_landmarks = show_landmarks
         self._running = False
         self.cap = None
         self.pose_processor = None
@@ -153,20 +158,28 @@ class WebcamThread(QThread):
         try:
             self.pose_processor = mp_solutions.pose.Pose(
                 static_image_mode=False,
-                model_complexity=2,
+                model_complexity=2, # Consider making this configurable or using a lighter model
                 enable_segmentation=False,
                 min_detection_confidence=0.5,
                 min_tracking_confidence=0.5
             )
             self.mp_pose_connections = mp_solutions.pose.POSE_CONNECTIONS
-            self.pose_landmarker = None
+            self.pose_landmarker = None # This seems unused if mp_solutions.pose.Pose is primary
         except Exception as e:
-            self.error = f"Failed to initialize MediaPipe Pose (solutions API): {e}"
+            self.error = f"Failed to initialize MediaPipe Pose: {e}"
             print(self.error)
             traceback.print_exc()
             self.pose_processor = None
+            # Emit error if initialization fails critically
+            # self.error_occurred.emit(self.error) # Consider if this should stop thread start
 
     def run(self):
+        if not self.pose_processor:
+            init_error_msg = self.error if self.error else "MediaPipe Pose processor failed to initialize."
+            self.error_occurred.emit(init_error_msg)
+            self._running = False # Ensure thread doesn't run if pose processor is bad
+            return
+
         self._running = True
         self.cap = cv2.VideoCapture(self.camera_index)
         frame_idx = 0
@@ -178,12 +191,12 @@ class WebcamThread(QThread):
                 fail_count += 1
                 if fail_count >= fail_limit:
                     # Try to distinguish error
-                    msg = "Webcam error."
+                    msg = f"Webcam error (index {self.camera_index})."
                     if not self.cap.isOpened():
-                        msg = "Webcam could not be opened."
+                        msg = f"Webcam (index {self.camera_index}) could not be opened. It might be disconnected or unavailable."
                     else:
                         # Try to check for permission denied or in use
-                        msg = "Webcam access denied or in use. Try another webcam in Settings."
+                        msg = f"Webcam (index {self.camera_index}) access denied or in use. Try another webcam in Settings."
                     self.error_occurred.emit(msg)
                     break
                 continue
@@ -198,11 +211,12 @@ class WebcamThread(QThread):
                         self.latest_pose_landmarks = [
                             [lm.x * frame.shape[1], lm.y * frame.shape[0]] for lm in result.pose_landmarks.landmark
                         ]
-                        self.drawing_utils.draw_landmarks(
-                            annotated_frame,
-                            result.pose_landmarks,
-                            self.mp_pose_connections
-                        )
+                        if self.should_draw_landmarks:
+                            self.drawing_utils.draw_landmarks(
+                                annotated_frame,
+                                result.pose_landmarks,
+                                self.mp_pose_connections
+                            )
                     else:
                         self.latest_pose_landmarks = None
             except Exception as e:
@@ -229,6 +243,9 @@ class WebcamThread(QThread):
         print("[DEBUG] WebcamThread waiting for run() to finish...") # DEBUG
         self.wait()
         print("[DEBUG] WebcamThread.run() finished") # DEBUG
+
+    def set_show_landmarks(self, show_landmarks: bool):
+        self.should_draw_landmarks = show_landmarks
 
 class SignUpDialog(QDialog):
     def __init__(self, parent=None):
@@ -296,6 +313,7 @@ class SignUpDialog(QDialog):
 class LoginView(QWidget):
     def __init__(self, parent=None, on_login=None):
         super().__init__(parent)
+        self.setObjectName("LoginViewContainer") # Added for specific container styling
         self.on_login = on_login
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -310,7 +328,7 @@ class LoginView(QWidget):
         # Logo
         logo_label = QLabel()
         logo_pixmap_size = 120
-        logo_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'app_logo.jpeg')
+        logo_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'ergo-logo.png')
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)
             logo_label.setPixmap(pixmap.scaled(logo_pixmap_size, logo_pixmap_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
@@ -326,19 +344,22 @@ class LoginView(QWidget):
 
         # Tagline
         tagline_label = QLabel('Improve your posture with real-time feedback.')
-        tagline_label.setProperty("class", "BodySecondary")
+        tagline_label.setObjectName("TaglineLabel") # More specific than just class
+        tagline_label.setProperty("class", "BodySecondary") # Keep class for general BodySecondary styling
         tagline_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tagline_label.setContentsMargins(0, 0, 0, 20)
         layout.addWidget(tagline_label)
 
         # Email input
         self.email_input = QLineEdit()
+        self.email_input.setObjectName("EmailInput") # Added objectName
         self.email_input.setPlaceholderText('Email')
         self.email_input.setFixedWidth(300)
         layout.addWidget(self.email_input, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Password input
         self.password_input = QLineEdit()
+        self.password_input.setObjectName("PasswordInput") # Added objectName
         self.password_input.setPlaceholderText('Password')
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.password_input.setFixedWidth(300)
@@ -354,7 +375,8 @@ class LoginView(QWidget):
 
         # Error message label
         self.error_label = QLabel()
-        self.error_label.setProperty("class", "ErrorText")
+        self.error_label.setObjectName("ErrorLabel") # Added objectName
+        self.error_label.setProperty("class", "ErrorText") # Keep class for general error styling
         self.error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.error_label.setWordWrap(True)
         self.error_label.setFixedWidth(300)
@@ -368,6 +390,7 @@ class LoginView(QWidget):
 
         # Sign-up Button (now styled as a secondary button)
         self.signup_button = QPushButton('Create Account')
+        self.signup_button.setProperty("class", "Secondary") # Apply Secondary button style
         self.signup_button.setFixedWidth(145)
         self.signup_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.signup_button.clicked.connect(self.open_signup_dialog)
@@ -375,7 +398,8 @@ class LoginView(QWidget):
 
         # Forgot Password Link Label
         link_label = QLabel('<a href="#">Forgot Password?</a>')
-        link_label.setProperty("class", "BodySecondary")
+        link_label.setObjectName("ForgotPasswordLink") # Added objectName
+        link_label.setProperty("class", "BodySecondary") # Keep class for general BodySecondary styling
         link_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
         link_label.setOpenExternalLinks(False)
         link_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -492,22 +516,55 @@ class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.setFixedSize(480, 350)
-        layout = QVBoxLayout()
-        layout.setSpacing(16)
+        self.resize(540, 560)
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        content_widget = QWidget()
+        main_layout = QVBoxLayout(content_widget)
+        main_layout.setSpacing(30)
+        main_layout.setContentsMargins(40, 30, 40, 30)
+        main_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
 
-        # Sensitivity
-        sens_layout = QHBoxLayout()
-        sens_label = QLabel("Sensitivity:")
+        # Helper: shadow effect
+        def make_shadow():
+            shadow = QGraphicsDropShadowEffect()
+            shadow.setBlurRadius(16)
+            shadow.setColor(QColor(0,0,0,40))
+            shadow.setOffset(0, 2)
+            return shadow
+
+        # Sensitivity Section
+        sens_group = QGroupBox("Sensitivity")
+        sens_group.setMinimumWidth(400)
+        sens_group.setGraphicsEffect(make_shadow())
+        sens_layout = QVBoxLayout()
+        sens_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        sens_desc = QLabel("How sensitive should posture detection be?")
+        sens_desc.setObjectName("SectionDescription")
+        sens_desc.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        sens_desc.setStyleSheet("background: transparent;")
+        sens_layout.addWidget(sens_desc)
         self.sens_combo = QComboBox()
         self.sens_combo.addItems(["Low", "Medium", "High"])
-        sens_layout.addWidget(sens_label)
-        sens_layout.addWidget(self.sens_combo)
-        layout.addLayout(sens_layout)
+        self.sens_combo.setMinimumWidth(180)
+        self.sens_combo.setMaximumWidth(260)
+        self.sens_combo.setToolTip("Set how sensitive the posture detection should be.")
+        self.sens_combo.setGraphicsEffect(make_shadow())
+        sens_layout.addWidget(self.sens_combo, alignment=Qt.AlignmentFlag.AlignHCenter)
+        sens_group.setLayout(sens_layout)
+        main_layout.addWidget(sens_group)
 
-        # Notification Mode
-        notif_label = QLabel("Notification Mode:")
-        layout.addWidget(notif_label)
+        # Notification Settings
+        notif_group = QGroupBox("Notifications")
+        notif_group.setMinimumWidth(400)
+        notif_group.setGraphicsEffect(make_shadow())
+        notif_layout = QVBoxLayout()
+        notif_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        notif_desc = QLabel("Choose how you want to be notified.")
+        notif_desc.setObjectName("SectionDescription")
+        notif_desc.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        notif_desc.setStyleSheet("background: transparent;")
+        notif_layout.addWidget(notif_desc)
         self.audio_radio = QRadioButton("Audio Alert Only")
         self.visual_radio = QRadioButton("Visual Alert Only")
         self.both_radio = QRadioButton("Both Audio and Visual Alerts")
@@ -515,34 +572,99 @@ class SettingsDialog(QDialog):
         self.notif_group.addButton(self.audio_radio)
         self.notif_group.addButton(self.visual_radio)
         self.notif_group.addButton(self.both_radio)
-        notif_layout = QHBoxLayout()
-        notif_layout.addWidget(self.audio_radio)
-        notif_layout.addWidget(self.visual_radio)
-        notif_layout.addWidget(self.both_radio)
-        layout.addLayout(notif_layout)
+        notif_radio_layout = QHBoxLayout()
+        notif_radio_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        notif_radio_layout.setSpacing(18)
+        notif_radio_layout.addWidget(self.audio_radio)
+        notif_radio_layout.addWidget(self.visual_radio)
+        notif_radio_layout.addWidget(self.both_radio)
+        notif_layout.addLayout(notif_radio_layout)
+        notif_group.setLayout(notif_layout)
+        main_layout.addWidget(notif_group)
 
         # Custom Alert Message
-        custom_msg_label = QLabel("Custom Alert Message:")
-        self.custom_msg_edit = QLineEdit()
-        layout.addWidget(custom_msg_label)
-        layout.addWidget(self.custom_msg_edit)
+        custom_msg_group = QGroupBox("Custom Alert Message")
+        custom_msg_group.setMinimumWidth(400)
+        custom_msg_group.setGraphicsEffect(make_shadow())
+        custom_msg_layout = QVBoxLayout()
+        custom_msg_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        custom_msg_desc = QLabel("Personalize the message you receive when posture is bad.")
+        custom_msg_desc.setObjectName("SectionDescription")
+        custom_msg_desc.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        custom_msg_desc.setStyleSheet("background: transparent;")
+        custom_msg_layout.addWidget(custom_msg_desc)
+        self.custom_msg_edit = QTextEdit()
+        self.custom_msg_edit.setPlaceholderText("Enter your custom alert message here (e.g. 'Fix your posture!')")
+        self.custom_msg_edit.setMinimumHeight(40)
+        self.custom_msg_edit.setMaximumHeight(80)
+        self.custom_msg_edit.setMaximumWidth(320)
+        self.custom_msg_edit.setGraphicsEffect(make_shadow())
+        custom_msg_layout.addWidget(self.custom_msg_edit, alignment=Qt.AlignmentFlag.AlignHCenter)
+        custom_msg_group.setLayout(custom_msg_layout)
+        main_layout.addWidget(custom_msg_group)
 
-        # Webcam Selection
-        webcam_layout = QHBoxLayout()
-        webcam_label = QLabel("Select Webcam:")
+        # Webcam Settings
+        webcam_group = QGroupBox("Webcam")
+        webcam_group.setMinimumWidth(400)
+        webcam_group.setGraphicsEffect(make_shadow())
+        webcam_layout = QVBoxLayout()
+        webcam_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        webcam_desc = QLabel("Select which webcam to use and whether to show posture landmarks.")
+        webcam_desc.setObjectName("SectionDescription")
+        webcam_desc.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        webcam_desc.setStyleSheet("background: transparent;")
+        webcam_layout.addWidget(webcam_desc)
         self.webcam_selector_combobox = QComboBox()
         for idx, name in get_available_cameras():
             self.webcam_selector_combobox.addItem(name, idx)
-        webcam_layout.addWidget(webcam_label)
-        webcam_layout.addWidget(self.webcam_selector_combobox)
-        layout.addLayout(webcam_layout)
+        self.webcam_selector_combobox.setMinimumWidth(180)
+        self.webcam_selector_combobox.setMaximumWidth(260)
+        self.webcam_selector_combobox.setToolTip("Choose which webcam to use for posture detection.")
+        self.webcam_selector_combobox.setGraphicsEffect(make_shadow())
+        webcam_layout.addWidget(self.webcam_selector_combobox, alignment=Qt.AlignmentFlag.AlignHCenter)
+        self.show_landmarks_checkbox = QCheckBox("Show Posture Landmarks on Webcam Feed")
+        self.show_landmarks_checkbox.setToolTip("Toggle the display of detected posture landmarks on the webcam feed.")
+        webcam_layout.addWidget(self.show_landmarks_checkbox, alignment=Qt.AlignmentFlag.AlignHCenter)
+        webcam_group.setLayout(webcam_layout)
+        main_layout.addWidget(webcam_group)
+
+        # Manage Subscription
+        sub_group = QGroupBox("Subscription")
+        sub_group.setMinimumWidth(400)
+        sub_group.setGraphicsEffect(make_shadow())
+        sub_layout = QVBoxLayout()
+        sub_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        sub_desc = QLabel("Manage your subscription and billing details online.")
+        sub_desc.setObjectName("SectionDescription")
+        sub_desc.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        sub_desc.setStyleSheet("background: transparent;")
+        sub_layout.addWidget(sub_desc)
+        self.manage_sub_button = QPushButton("Manage Subscription")
+        self.manage_sub_button.setProperty("class", "Secondary")
+        self.manage_sub_button.setMinimumWidth(220)
+        self.manage_sub_button.setMaximumWidth(220)
+        icon_sub_settings = self.style().standardIcon(QStyle.StandardPixmap.SP_FileLinkIcon)
+        self.manage_sub_button.setIcon(icon_sub_settings)
+        self.manage_sub_button.clicked.connect(self.open_subscription_page)
+        self.manage_sub_button.setGraphicsEffect(make_shadow())
+        sub_layout.addWidget(self.manage_sub_button, alignment=Qt.AlignmentFlag.AlignHCenter)
+        sub_group.setLayout(sub_layout)
+        main_layout.addWidget(sub_group)
 
         # Dialog buttons
         self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        for btn in self.button_box.buttons():
+            btn.setMinimumWidth(160)
+            btn.setMaximumWidth(160)
+            btn.setGraphicsEffect(make_shadow())
+        self.button_box.setCenterButtons(True)
         self.button_box.accepted.connect(self.save_settings)
         self.button_box.rejected.connect(self.reject)
-        layout.addWidget(self.button_box)
+        main_layout.addWidget(self.button_box, alignment=Qt.AlignmentFlag.AlignHCenter)
 
+        scroll.setWidget(content_widget)
+        layout = QVBoxLayout(self)
+        layout.addWidget(scroll)
         self.setLayout(layout)
         self.load_settings()
 
@@ -551,11 +673,10 @@ class SettingsDialog(QDialog):
         sens = settings.value("sensitivity", "Medium")
         notif = settings.value("notification_mode", "both")
         custom_msg = settings.value("custom_alert_message", "Fix your posture!")
-        # Ensure webcam_idx is an int, even if QSettings returns None
         webcam_idx_setting = settings.value("webcam_index", 0)
         webcam_idx = int(webcam_idx_setting) if webcam_idx_setting is not None else 0
+        show_lm = settings.value("show_landmarks", True, type=bool)
 
-        # Set UI
         self.sens_combo.setCurrentText(sens)
         if notif == "audio":
             self.audio_radio.setChecked(True)
@@ -563,8 +684,8 @@ class SettingsDialog(QDialog):
             self.visual_radio.setChecked(True)
         else:
             self.both_radio.setChecked(True)
-        self.custom_msg_edit.setText(custom_msg)
-        # Set webcam index
+        self.custom_msg_edit.setPlainText(custom_msg)
+        self.show_landmarks_checkbox.setChecked(show_lm)
         idx = self.webcam_selector_combobox.findData(webcam_idx)
         if idx != -1:
             self.webcam_selector_combobox.setCurrentIndex(idx)
@@ -580,16 +701,21 @@ class SettingsDialog(QDialog):
             notif = "visual"
         else:
             notif = "both"
-        custom_msg = self.custom_msg_edit.text()
+        custom_msg = self.custom_msg_edit.toPlainText()
         webcam_idx = self.webcam_selector_combobox.currentData()
+        show_lm_val = self.show_landmarks_checkbox.isChecked()
         settings.setValue("sensitivity", sens)
         settings.setValue("notification_mode", notif)
         settings.setValue("custom_alert_message", custom_msg)
         settings.setValue("webcam_index", webcam_idx)
+        settings.setValue("show_landmarks", show_lm_val)
         self.accept()
-        # Apply to main app if parent has apply_settings
         if hasattr(self.parent(), "apply_settings"):
             self.parent().apply_settings()
+
+    def open_subscription_page(self):
+        # This method now directly opens the URL
+        QDesktopServices.openUrl(QUrl("https://app.supabase.com")) # Use your actual subscription page URL
 
 class SessionGraphCanvas(FigureCanvas):
     def __init__(self, parent=None):
@@ -597,8 +723,9 @@ class SessionGraphCanvas(FigureCanvas):
         super().__init__(self.fig)
         self.setParent(parent)
         self.ax = self.fig.add_subplot(111)
-        self.fig.tight_layout()
+        # self.fig.tight_layout() # Removed, plotting functions will call it
         self.current_graph_type = None # To track what's being displayed
+        self.plot_historical_data(None) # Initialize with empty historical view
 
     def plot_historical_data(self, session_data):
         self.ax.clear()
@@ -623,6 +750,7 @@ class SessionGraphCanvas(FigureCanvas):
             self.ax.title.set_color('#F0F0F5')
             self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
         else:
+            self.ax.set_title('Posture Reminders Per Session (Historical)') # Ensure title is set for empty historical
             self.ax.text(0.5, 0.5, 'No session data yet.', ha='center', va='center', fontsize=12, color='#F0F0F5', transform=self.ax.transAxes)
             self.ax.set_xlabel('Session Date')
             self.ax.set_ylabel('Total Reminders')
@@ -642,7 +770,7 @@ class SessionGraphCanvas(FigureCanvas):
             self.ax.yaxis.label.set_color('#F0F0F5')
             self.ax.xaxis.label.set_color('#F0F0F5')
             self.ax.title.set_color('#F0F0F5')
-        self.fig.tight_layout()
+        self.fig.tight_layout(pad=0.5) # Added padding
         self.draw()
         self.current_graph_type = "historical"
 
@@ -655,30 +783,32 @@ class SessionGraphCanvas(FigureCanvas):
             self.ax.set_title('Live Reminders This Session')
             self.ax.set_xlabel('Time Elapsed (seconds)')
             self.ax.set_ylabel('Cumulative Reminders')
-            self.ax.set_ylim(bottom=0)
+            self.ax.set_ylim(bottom=0) # Restore dynamic Y limit
             max_y = max(count_data) if count_data else 0
-            self.ax.set_yticks(range(0, max_y + 2))
-            self.ax.set_xlim(left=0)
+            self.ax.set_yticks(range(0, max_y + 2)) # Restore dynamic Y ticks
+            self.ax.set_xlim(left=0) # Restore dynamic X limit
+            # self.ax.set_xticks can be left to matplotlib's auto-ticker or customized if needed
             self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
         elif live_reminder_data and len(live_reminder_data) == 1 and live_reminder_data[0][0] == 0 and live_reminder_data[0][1] == 0:
             self.ax.plot([0], [0], marker='o', color='#00C853', markersize=5)
             self.ax.set_title('Live Reminders This Session')
             self.ax.set_xlabel('Time Elapsed (seconds)')
             self.ax.set_ylabel('Cumulative Reminders')
-            self.ax.set_ylim(bottom=0, top=1)
-            self.ax.set_xlim(left=0, right=60)
-            self.ax.set_yticks([0, 1])
-            self.ax.set_xticks([0, 30, 60])
+            self.ax.set_ylim(bottom=0, top=10) # Keep Y limit 0-10
+            self.ax.set_xlim(left=0, right=60) # Keep X limit 0-60 for this case
+            self.ax.set_yticks(range(0, 11, 2)) # Keep Y ticks for 0-10 range
+            self.ax.set_xticks([0, 30, 60]) # Keep X ticks for this case
             self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
             self.ax.text(0.5, 0.6, 'Session active. Monitoring...', ha='center', va='center', fontsize=10, color='#F0F0F5', transform=self.ax.transAxes)
         else:
+            self.ax.set_title('Live Reminders This Session') 
             self.ax.text(0.5, 0.5, 'Session started. Waiting for first reminder...', ha='center', va='center', fontsize=10, color='#F0F0F5', transform=self.ax.transAxes)
             self.ax.set_xlabel('Time Elapsed (seconds)')
             self.ax.set_ylabel('Cumulative Reminders')
             self.ax.set_xticks([0, 30, 60])
-            self.ax.set_yticks([0, 1])
-            self.ax.set_xlim(left=0, right=60)
-            self.ax.set_ylim(bottom=0, top=1)
+            self.ax.set_yticks(range(0, 11, 2)) # Keep Y ticks for 0-10 range
+            self.ax.set_xlim(left=0, right=60) # Keep X limit 0-60 for this case
+            self.ax.set_ylim(bottom=0, top=10) # Keep Y limit 0-10
             self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
         self.fig.patch.set_facecolor('#2D2D3F')
         self.ax.set_facecolor('#3C3C50')
@@ -691,7 +821,7 @@ class SessionGraphCanvas(FigureCanvas):
         self.ax.yaxis.label.set_color('#F0F0F5')
         self.ax.xaxis.label.set_color('#F0F0F5')
         self.ax.title.set_color('#F0F0F5')
-        self.fig.tight_layout()
+        self.fig.tight_layout(pad=0.5) # Added padding
         self.draw()
         self.current_graph_type = "live"
 
@@ -712,6 +842,7 @@ class DashboardView(QWidget):
 
     def __init__(self, parent=None, on_logout=None):
         super().__init__(parent)
+        self.setObjectName("DashboardViewContainer") # Added objectName
         self.on_logout = on_logout
         self.user_email = None
         self.subscription_status_str = None
@@ -740,38 +871,66 @@ class DashboardView(QWidget):
         self.alert_interval = 5  # seconds between posture deviation alerts
 
         # Top buttons (Start/Stop Session, Settings, Logout)
-        button_layout = QHBoxLayout()
+        top_button_bar = QWidget() # Create a container for the top button bar
+        top_button_bar.setObjectName("TopButtonBar")
+        button_layout = QHBoxLayout(top_button_bar) # Apply layout to the container
+        button_layout.setContentsMargins(0,0,0,0) # No margins for the bar itself
+        button_layout.setSpacing(10) # Spacing between buttons
+
         self.start_session_btn = QPushButton('Start Session')
+        self.start_session_btn.setObjectName("PrimaryCTA") # Primary action
+        # Use standard icon as fallback
+        icon_start = self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
+        self.start_session_btn.setIcon(icon_start)
+
         self.stop_session_btn = QPushButton('Stop Session')
+        self.stop_session_btn.setObjectName("StopButton") 
+        icon_stop = self.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop)
+        self.stop_session_btn.setIcon(icon_stop)
         self.stop_session_btn.setEnabled(False)
-        self.start_session_btn.clicked.connect(self.start_calibration)
-        self.stop_session_btn.clicked.connect(self.stop_session)
+
+        # Standard icon for settings button
+        icon_settings = self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon) # Or SP_FileDialogDetailedView, SP_ToolBarHorizontalExtensionButton
+        self.settings_btn.setIcon(icon_settings)
+
+        logout_btn = QPushButton('Logout')
+        logout_btn.setProperty("class", "Secondary") # Secondary action
+        icon_logout = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogCloseButton) # Or SP_DialogCancelButton
+        logout_btn.setIcon(icon_logout)
+        logout_btn.clicked.connect(self.handle_logout)  # Connect the button to the logout handler
         button_layout.addWidget(self.start_session_btn)
         button_layout.addWidget(self.stop_session_btn)
         button_layout.addWidget(self.settings_btn)
-        logout_btn = QPushButton('Logout')
-        logout_btn.clicked.connect(self.handle_logout)
         button_layout.addWidget(logout_btn)
         button_layout.addStretch()
-        main_layout.addLayout(button_layout)
+        main_layout.addWidget(top_button_bar) # Add the button bar widget
 
         # Webcam feed area
-        self.webcam_feed_label = QLabel()
-        self.webcam_feed_label.setFixedSize(640, 480)
-        self.webcam_feed_label.setStyleSheet('background-color: black; border: 1px solid #aaa;')
+        webcam_frame = QFrame() # Use a QFrame for better styling options (e.g. border, background)
+        webcam_frame.setObjectName("CameraViewFrame") # Matches QSS
+        webcam_frame_layout = QVBoxLayout(webcam_frame)
+        webcam_frame_layout.setContentsMargins(0,0,0,0)
+        self.webcam_feed_label = QLabel("Initializing camera...") # Initial text
+        self.webcam_feed_label.setObjectName("WebcamFeedLabel") # Matches QSS
         self.webcam_feed_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.addWidget(self.webcam_feed_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        # Removed fixed size to allow QFrame to manage it, or use setSizePolicy
+        self.webcam_feed_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        webcam_frame_layout.addWidget(self.webcam_feed_label)
+        # The QFrame itself can have a fixed size or be expansive
+        webcam_frame.setFixedSize(640, 480) # Or use layout to control size
+        main_layout.addWidget(webcam_frame, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Calibration overlay widgets
         self.calib_overlay = QWidget()
+        self.calib_overlay.setObjectName("CalibrationOverlay")
         calib_layout = QVBoxLayout()
-        calib_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.calib_instructions = QLabel(
             "Sit upright, shoulders relaxed and back. Align your head over your shoulders, looking straight ahead. Match the example postures shown below. Click 'Capture Good Posture' when ready."
         )
+        self.calib_instructions.setObjectName("CalibrationInstructionsLabel")
+        self.calib_instructions.setProperty("class", "BodyPrimary") # Use BodyPrimary for good readability
         self.calib_instructions.setWordWrap(True)
-        self.calib_instructions.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.calib_instructions.setFixedWidth(600)
+        self.calib_instructions.setStyleSheet("background: transparent;")
         calib_layout.addWidget(self.calib_instructions)
 
         # Image container for side-by-side example postures
@@ -781,7 +940,7 @@ class DashboardView(QWidget):
         self.front_view_image_label = QLabel()
         self.side_view_image_label = QLabel()
 
-        image_height = 180 # Desired height for the example images
+        image_height = 360 # Desired height for the example images
 
         front_image_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'calibration_posture.jpg')
         if os.path.exists(front_image_path):
@@ -808,63 +967,57 @@ class DashboardView(QWidget):
         # Buttons
         btn_row = QHBoxLayout()
         self.capture_btn = QPushButton('Capture Good Posture')
+        self.capture_btn.setObjectName("PrimaryCTA") # Primary action in this context
+        icon_capture = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton) # Changed to a valid standard icon
+        self.capture_btn.setIcon(icon_capture)
         self.capture_btn.clicked.connect(self.capture_good_posture)
-        self.cancel_calib_btn = QPushButton('Cancel Calibration')
-        self.cancel_calib_btn.clicked.connect(self.cancel_calibration)
         btn_row.addWidget(self.capture_btn)
+
+        self.cancel_calib_btn = QPushButton('Cancel Calibration')
+        self.cancel_calib_btn.setProperty("class", "Secondary") # Secondary action
+        icon_cancel = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogCancelButton)
+        self.cancel_calib_btn.setIcon(icon_cancel)
         btn_row.addWidget(self.cancel_calib_btn)
         calib_layout.addLayout(btn_row)
         self.calib_overlay.setLayout(calib_layout)
         self.calib_overlay.hide()
         main_layout.addWidget(self.calib_overlay, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # User Account Information section
-        account_group = QWidget()
-        account_layout = QVBoxLayout()
-        account_label = QLabel('User Account Information')
-        account_label.setFont(QFont('', 12, QFont.Weight.Bold))
-        self.subscription_status = QLabel('Subscription Status: -')
-        manage_sub_btn = QPushButton('Manage Subscription')
-        manage_sub_btn.clicked.connect(self.open_manage_subscription)
-        account_layout.addWidget(account_label)
-        account_layout.addWidget(self.subscription_status)
-        account_layout.addWidget(manage_sub_btn)
-        account_group.setLayout(account_layout)
-        main_layout.addWidget(account_group)
-
-        # Replace graph placeholder with matplotlib canvas
-        self.session_graph = SessionGraphCanvas(self)
-        graph_group = QWidget()
+        # --- Posture Reminders Over Time section --- (Using QGroupBox)
+        graph_group = QGroupBox("Posture Reminders Over Time")
+        graph_group.setObjectName("GraphDisplayGroup") # Matches QSS for potential specific styling
         graph_layout = QVBoxLayout()
-        graph_label = QLabel('Posture Reminders Over Time')
-        graph_label.setFont(QFont('', 12, QFont.Weight.Bold))
-        graph_layout.addWidget(graph_label)
+        graph_layout.setSpacing(10)
+        self.session_graph = SessionGraphCanvas(self)
+        # graph_label removed as QGroupBox provides a title
         graph_layout.addWidget(self.session_graph, alignment=Qt.AlignmentFlag.AlignCenter)
         graph_group.setLayout(graph_layout)
         main_layout.addWidget(graph_group)
 
         # Update notification label (hidden by default)
         self.update_notification_label = QLabel()
-        self.update_notification_label.setStyleSheet('background-color: #FFF3CD; color: #856404; border: 1px solid #FFEEBA; padding: 6px;')
+        self.update_notification_label.setObjectName("UpdateNotificationLabel") # For QSS styling
+        self.update_notification_label.setStyleSheet("background: transparent;")
         self.update_notification_label.setVisible(False)
-        self.update_notification_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
-        self.update_notification_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.update_notification_label.mousePressEvent = self._on_update_label_clicked
-        self._update_download_urls = None
-        self._update_notes = None
-        self._update_version = None
+        # self._update_download_urls = None
+        # self._update_notes = None
+        # self._update_version = None
         # Insert at top of layout
         main_layout.insertWidget(0, self.update_notification_label)
 
         # Status/alert label for webcam/landmark issues
         self.status_label = QLabel()
-        self.status_label.setStyleSheet('color: #b94a48; background: #f2dede; border: 1px solid #eed3d7; padding: 4px;')
+        self.status_label.setObjectName("StatusAlertLabel") # For QSS styling
+        self.status_label.setStyleSheet("background: transparent;")
         self.status_label.setVisible(False)
         main_layout.insertWidget(1, self.status_label)  # Just below update label
         self._landmark_missing_since = None
 
         main_layout.addStretch()
         self.setLayout(main_layout)
+
+        # Add to __init__ of DashboardView:
+        self._bad_posture_start_time = None  # Track when bad posture started
 
     def start_calibration(self):
         if self.session_active or self.calibrating:
@@ -881,7 +1034,8 @@ class DashboardView(QWidget):
         # Start webcam if not running
         if not self.webcam_thread:
             cam_idx = self.app_settings.get("webcam_index", 0)
-            self.webcam_thread = WebcamThread(camera_index=cam_idx)
+            show_lm_setting = self.app_settings.get("show_landmarks", True)
+            self.webcam_thread = WebcamThread(camera_index=cam_idx, show_landmarks=show_lm_setting)
             self.webcam_thread.new_frame_ready.connect(self.update_webcam_feed)
             self.webcam_thread.error_occurred.connect(self.handle_webcam_error)
             self.webcam_thread.pose_processor = None  # force re-init if needed
@@ -910,47 +1064,77 @@ class DashboardView(QWidget):
                 self._landmark_missing_since = None
                 self.status_label.setVisible(False)
 
-        if self.session_active and self.session_start_time is not None and self.reference_angles.get('head_forward') is not None and self.reference_angles.get('shoulder_line') is not None:
+        if (self.session_active and 
+            self.session_start_time is not None and 
+            self.reference_angles.get('head_forward') is not None and 
+            self.reference_angles.get('shoulder_line') is not None and 
+            self.reference_angles.get('neck_dx') is not None and 
+            self.reference_angles.get('inter_shoulder_distance') is not None):
             if landmarks:
                 try:
-                    current_angles = self.calculate_reference_angles(landmarks)
-                    head_deviation_angle = abs(current_angles['head_forward'] - self.reference_angles['head_forward'])
-                    shoulder_deviation_angle = abs(current_angles['shoulder_line'] - self.reference_angles['shoulder_line'])
-                    threshold = self.app_settings.get("sensitivity_degrees", 20)
-                    if head_deviation_angle > threshold or shoulder_deviation_angle > threshold:
+                    current_calculated_values = self.calculate_reference_angles(landmarks)
+                    threshold_angle = self.app_settings.get("sensitivity_degrees", 40)
+                    sensitivity_setting_str = self.app_settings.get("sensitivity_string", "Low") # Default to Low
+
+                    # Define ratios based on sensitivity string
+                    if sensitivity_setting_str == "High":
+                        current_head_ratio = 0.05  # Stricter for High sensitivity
+                        current_shoulder_ratio = 0.05 # Stricter for High sensitivity
+                    elif sensitivity_setting_str == "Low":
+                        current_head_ratio = 0.12  # Looser for Low sensitivity
+                        current_shoulder_ratio = 0.12 # Looser for Low sensitivity
+                    else: # Medium or fallback
+                        current_head_ratio = 0.08
+                        current_shoulder_ratio = 0.08
+                    # Primary angle deviation checks
+                    head_angle_deviation = abs(current_calculated_values['head_forward'] - self.reference_angles['head_forward'])
+                    shoulder_angle_deviation = abs(current_calculated_values['shoulder_line'] - self.reference_angles['shoulder_line'])
+                    
+                    head_angle_bad = head_angle_deviation > threshold_angle
+                    shoulder_angle_bad = shoulder_angle_deviation > threshold_angle
+
+                    # Secondary check for head forward tilt (horizontal shift)
+                    head_horizontal_shift = abs(current_calculated_values['neck_dx'] - self.reference_angles['neck_dx'])
+                    # Use calibrated inter_shoulder_distance for a stable reference for this threshold
+                    head_horizontal_shift_limit = self.reference_angles['inter_shoulder_distance'] * current_head_ratio 
+                    head_shift_bad = head_horizontal_shift > head_horizontal_shift_limit
+                    
+                    # Secondary check for shoulder tilt (vertical difference)
+                    vertical_shoulder_diff = current_calculated_values['vertical_shoulder_difference']
+                    # Use current inter_shoulder_distance as this is about current geometry proportions
+                    current_inter_shoulder_dist = current_calculated_values['inter_shoulder_distance'] 
+                    shoulder_vertical_limit = current_inter_shoulder_dist * current_shoulder_ratio
+                    shoulder_vertical_diff_bad = vertical_shoulder_diff > shoulder_vertical_limit
+
+                    alert_for_head = head_angle_bad and head_shift_bad
+                    alert_for_shoulder = shoulder_angle_bad and shoulder_vertical_diff_bad
+
+                    posture_broken = alert_for_head or alert_for_shoulder
+                    if posture_broken:
+                        if self._bad_posture_start_time is None:
+                            self._bad_posture_start_time = now
+                        bad_posture_duration = now - self._bad_posture_start_time
+                    else:
+                        self._bad_posture_start_time = None
+                        bad_posture_duration = 0
+
+                    # Only trigger notification if posture has been bad for at least 2 seconds
+                    if posture_broken and bad_posture_duration >= 2.0:
                         if now - self._last_alert_time >= self.alert_interval:
                             self.current_session_reminder_count += 1
                             print(f"[DEBUG] Reminder count incremented: {self.current_session_reminder_count}")
-                            
                             time_elapsed_seconds = now - self.session_start_time
                             self.current_session_live_reminder_data.append((time_elapsed_seconds, self.current_session_reminder_count))
-                            
                             self.session_graph.plot_live_data(self.current_session_live_reminder_data)
-                            
                             notification_mode = self.app_settings.get("notification_mode", "both")
                             alert_message = self.app_settings.get('custom_alert_message', 'Fix your posture!')
-
                             # Visual notification
                             if notification_mode in ["visual", "both"]:
-                                # Show custom toast notification centered on DashboardView
                                 toast = CustomNotificationToast(alert_message, parent=self)
                                 toast.show_toast()
-
-                                # Optionally, keep tray notification or make it configurable
-                                # mainwin = self.window()
-                                # if hasattr(mainwin, 'tray_icon'):
-                                #     mainwin.tray_icon.showMessage(
-                                #         'PostureApp',
-                                #         alert_message,
-                                #         QSystemTrayIcon.MessageIcon.Information,
-                                #         2000
-                                #     )
-                            
                             # Audio notification
                             if notification_mode in ["audio", "both"]:
                                 threading.Thread(target=self._speak_alert, daemon=True).start()
-                            
-                            # Reset alert timer
                             self._last_alert_time = now
                 except Exception as e:
                     print(f"Deviation calculation error: {e}")
@@ -966,8 +1150,13 @@ class DashboardView(QWidget):
         landmarks = self.webcam_thread.latest_pose_landmarks
         # Calculate reference angles
         try:
-            ref_angles = self.calculate_reference_angles(landmarks)
-            self.reference_angles = ref_angles
+            ref_values = self.calculate_reference_angles(landmarks)
+            self.reference_angles = {
+                'head_forward': ref_values['head_forward'],
+                'shoulder_line': ref_values['shoulder_line'],
+                'neck_dx': ref_values['neck_dx'],
+                'inter_shoulder_distance': ref_values['inter_shoulder_distance']
+            }
             self.calib_overlay.hide()
             self.session_active = True
             print("[DEBUG] DashboardView.session_active set to True in capture_good_posture")
@@ -1061,35 +1250,32 @@ class DashboardView(QWidget):
         ear_midpoint = self.calculate_midpoint(left_ear_pt, right_ear_pt)
         shoulder_midpoint = self.calculate_midpoint(left_shoulder_pt, right_shoulder_pt)
         
-        # Neck Posture Angle: Angle of the vector from shoulder_midpoint to ear_midpoint,
-        # with respect to the upward vertical axis.
-        # Upward vertical axis from shoulder_midpoint is (shoulder_midpoint_x, shoulder_midpoint_y - some_length).
-        # Vector from shoulder_midpoint to ear_midpoint is (ear_mid_x - shoulder_mid_x, ear_mid_y - shoulder_mid_y).
-        # Angle = atan2(vec_x, -vec_y_for_vertical_alignment)
-        # vec_x_neck = ear_midpoint[0] - shoulder_midpoint[0]
-        # vec_y_neck_orig = ear_midpoint[1] - shoulder_midpoint[1] # Y typically increases downwards
-        # neck_posture_angle_rad = math.atan2(vec_x_neck, -vec_y_neck_orig)
-        # -vec_y_neck_orig is (shoulder_midpoint[1] - ear_midpoint[1])
-        
         neck_dx = ear_midpoint[0] - shoulder_midpoint[0]
-        neck_dy_for_atan2 = shoulder_midpoint[1] - ear_midpoint[1] # (Shoulder_Y - Ear_Y). Positive if ear is above shoulder.
-        
-        # Ensure neck_dy_for_atan2 is not zero to prevent atan2(0,0) if ear_midpoint and shoulder_midpoint are vertically aligned AND at same y
-        # This case (ear_midpoint_y == shoulder_midpoint_y) is unlikely for typical posture but good to be aware.
-        # If neck_dy_for_atan2 is zero and neck_dx is also zero, it implies ear_midpoint coincident with shoulder_midpoint - an extreme/error case.
-        # If neck_dy_for_atan2 is zero and neck_dx is non-zero, angle is +/- PI/2. math.atan2 handles this.
+        neck_dy_for_atan2 = shoulder_midpoint[1] - ear_midpoint[1]
         neck_posture_angle_rad = math.atan2(neck_dx, neck_dy_for_atan2)
 
-
-        # Shoulder line angle: angle of the line connecting shoulders with the horizontal axis
         shoulder_line_angle_rad = math.atan2(
             right_shoulder_pt[1] - left_shoulder_pt[1],
             right_shoulder_pt[0] - left_shoulder_pt[0]
         )
 
+        # Calculate additional metrics for secondary checks
+        inter_shoulder_distance = math.sqrt(
+            (right_shoulder_pt[0] - left_shoulder_pt[0])**2 +
+            (right_shoulder_pt[1] - left_shoulder_pt[1])**2
+        )
+        # Ensure distance is not zero to avoid division by zero if landmarks are coincident
+        if inter_shoulder_distance < 1e-6: # Using a small epsilon
+            inter_shoulder_distance = 1e-6
+
+        vertical_shoulder_difference = abs(right_shoulder_pt[1] - left_shoulder_pt[1])
+
         return {
             'head_forward': math.degrees(neck_posture_angle_rad),
-            'shoulder_line': math.degrees(shoulder_line_angle_rad)
+            'shoulder_line': math.degrees(shoulder_line_angle_rad),
+            'neck_dx': neck_dx,  # Horizontal distance ear_mid to shoulder_mid
+            'inter_shoulder_distance': inter_shoulder_distance, # Distance between shoulders
+            'vertical_shoulder_difference': vertical_shoulder_difference # Abs Y-diff between shoulders
         }
 
     @staticmethod
@@ -1098,15 +1284,19 @@ class DashboardView(QWidget):
 
     def update_user_info(self, email, status=None, expires_at=None):
         self.user_email = email
+        # The UI elements for displaying this directly on DashboardView are removed.
+        # This method can still be used to store the info if needed for other purposes (e.g. tray tooltip)
         if status and expires_at:
             try:
                 expires_dt = datetime.fromisoformat(expires_at)
                 expires_str = expires_dt.strftime('%Y-%m-%d')
+                # Example: self.current_subscription_details = f"Subscription: {status.capitalize()} until {expires_str}"
             except Exception:
-                expires_str = expires_at
-            self.subscription_status.setText(f"Subscription: {status.capitalize()} until {expires_str} for {email}")
+                # self.current_subscription_details = f"Subscription: {status.capitalize()} until {expires_at}"
+                pass # Store as is if parsing fails
         else:
-            self.subscription_status.setText(f"Subscription Status: - for {email}")
+            # self.current_subscription_details = f"Subscription Status: - for {email}"
+            pass
 
     def open_manage_subscription(self):
         QDesktopServices.openUrl(QUrl("https://app.supabase.com"))
@@ -1139,7 +1329,24 @@ class DashboardView(QWidget):
         dlg.exec()
 
     def apply_settings(self):
+        old_cam_idx = self.app_settings.get("webcam_index", 0)
         self.app_settings = self.load_app_settings()
+        new_cam_idx = self.app_settings.get("webcam_index", 0)
+        new_show_lm_setting = self.app_settings.get("show_landmarks", True)
+
+        if self.webcam_thread:
+            if old_cam_idx != new_cam_idx:
+                # Camera changed, stop and restart webcam
+                self.stop_webcam()
+                if self.session_active or self.calibrating: # Only restart if a session was active or calibrating
+                    self.webcam_thread = WebcamThread(camera_index=new_cam_idx, show_landmarks=new_show_lm_setting)
+                    self.webcam_thread.new_frame_ready.connect(self.update_webcam_feed)
+                    self.webcam_thread.error_occurred.connect(self.handle_webcam_error)
+                    # self.webcam_thread.latest_landmarks_callback = self.receive_landmarks # If you still use this
+                    self.webcam_thread.start_capture()
+            elif self.webcam_thread.isRunning():
+                # Camera did not change, but landmarks visibility might have
+                self.webcam_thread.set_show_landmarks(new_show_lm_setting)
 
     def load_app_settings(self):
         settings = QSettings(ORGANIZATION_NAME, APPLICATION_NAME)
@@ -1149,19 +1356,22 @@ class DashboardView(QWidget):
         # Ensure webcam_idx is an int, even if QSettings returns None
         webcam_idx_setting = settings.value("webcam_index", 0)
         webcam_idx = int(webcam_idx_setting) if webcam_idx_setting is not None else 0
+        show_lm = settings.value("show_landmarks", True, type=bool)
 
-        # Map sensitivity to degrees (High:15, Medium:25, Low:35)
+        # Map sensitivity to degrees (High:20, Medium:30, Low:40)
         if sens == "Low":
-            sens_deg = 35
+            sens_deg = 40
         elif sens == "High":
-            sens_deg = 15
-        else:
-            sens_deg = 25
+            sens_deg = 20
+        else: # Default to Medium
+            sens_deg = 30
         return {
+            "sensitivity_string": sens, # Store the original sensitivity string
             "sensitivity_degrees": sens_deg,
             "notification_mode": notif,
             "custom_alert_message": custom_msg,
-            "webcam_index": webcam_idx
+            "webcam_index": webcam_idx,
+            "show_landmarks": show_lm
         }
 
     def showEvent(self, event):
@@ -1351,7 +1561,6 @@ class AboutDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("About Ergo")
-        self.setFixedSize(420, 350)
         layout = QVBoxLayout()
         layout.setSpacing(14)
 
@@ -1362,17 +1571,20 @@ class AboutDialog(QDialog):
         font.setBold(True)
         app_name.setFont(font)
         app_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        app_name.setWordWrap(True)
         layout.addWidget(app_name)
 
         # Version
         version_label = QLabel(f"Version: {CURRENT_APP_VERSION}")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        version_label.setWordWrap(True)
         layout.addWidget(version_label)
 
         # Copyright
         year = datetime.now().year
         copyright_label = QLabel(f"© {year} devdash AB. All rights reserved.")
         copyright_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        copyright_label.setWordWrap(True)
         layout.addWidget(copyright_label)
 
         # Description
@@ -1391,10 +1603,13 @@ class AboutDialog(QDialog):
         links_layout = QVBoxLayout()
         privacy_link = QLabel('<a href="https://example.com/privacy">Privacy Policy</a>')
         privacy_link.setOpenExternalLinks(True)
+        privacy_link.setWordWrap(True)
         help_link = QLabel('<a href="https://example.com/help">Help/Documentation</a>')
         help_link.setOpenExternalLinks(True)
+        help_link.setWordWrap(True)
         contact_link = QLabel('<a href="https://example.com/contact">Contact Us/Support</a>')
         contact_link.setOpenExternalLinks(True)
+        contact_link.setWordWrap(True)
         for link in (privacy_link, help_link, contact_link):
             link.setAlignment(Qt.AlignmentFlag.AlignCenter)
             links_layout.addWidget(link)
@@ -1406,6 +1621,9 @@ class AboutDialog(QDialog):
         layout.addWidget(ok_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.setLayout(layout)
+        self.adjustSize()
+        self.setMinimumSize(self.sizeHint())
+        self.setSizeGripEnabled(True)
 
 def get_platform():
     system = platform.system().lower()
@@ -1451,7 +1669,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('Ergo')
 
         # Define icon path
-        self.icon_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'app_logo.jpeg')
+        self.icon_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'ergo-logo.png')
 
         # Menu bar
         menubar = self.menuBar()
@@ -1473,8 +1691,13 @@ class MainWindow(QMainWindow):
         self.login_view = LoginView(on_login=self.show_dashboard_view)
         self.dashboard_view = DashboardView(on_logout=self.show_login_view)
 
+        # Wrap dashboard_view in a QScrollArea for scrollability
+        self.dashboard_scroll_area = QScrollArea()
+        self.dashboard_scroll_area.setWidgetResizable(True)
+        self.dashboard_scroll_area.setWidget(self.dashboard_view)
+
         self.stacked_widget.addWidget(self.login_view)      # Index 0
-        self.stacked_widget.addWidget(self.dashboard_view)  # Index 1
+        self.stacked_widget.addWidget(self.dashboard_scroll_area)  # Index 1
 
         self.setCentralWidget(self.stacked_widget)
         self.stacked_widget.setCurrentIndex(0)  # Show LoginView on startup
@@ -1518,10 +1741,9 @@ class MainWindow(QMainWindow):
         self.tray_icon.show()
         self._quit_from_tray = False
 
-        # Wire dashboard buttons to logic
-        self.dashboard_view.start_session_btn.clicked.disconnect()
+        # Wire dashboard buttons to logic in MainWindow
+        # Remove .disconnect() calls as DashboardView buttons are not connected in its __init__
         self.dashboard_view.start_session_btn.clicked.connect(self.start_session_logic)
-        self.dashboard_view.stop_session_btn.clicked.disconnect()
         self.dashboard_view.stop_session_btn.clicked.connect(self.stop_session_logic)
 
         # Connect to DashboardView's signal for when session fully starts
@@ -1556,7 +1778,7 @@ class MainWindow(QMainWindow):
             self.start_session_logic()
 
     def open_settings_from_tray(self):
-        if self.stacked_widget.currentWidget() == self.dashboard_view:
+        if self.stacked_widget.currentWidget() == self.dashboard_scroll_area:
             self.dashboard_view.open_settings_dialog()
         else:
             self.show_and_raise()
@@ -1569,7 +1791,7 @@ class MainWindow(QMainWindow):
         if self.is_session_active:
             return
         # Show dashboard if not visible
-        if self.stacked_widget.currentWidget() != self.dashboard_view:
+        if self.stacked_widget.currentWidget() != self.dashboard_scroll_area:
             self.show_dashboard_view(self.current_user_email, self.current_subscription_status, self.current_subscription_expires)
         
         # Calibration step if needed (DashboardView handles its UI for this)
@@ -1625,7 +1847,7 @@ class MainWindow(QMainWindow):
         if expires_at:
             self.current_subscription_expires = expires_at
         self.dashboard_view.update_user_info(self.current_user_email, self.current_subscription_status, self.current_subscription_expires)
-        self.stacked_widget.setCurrentWidget(self.dashboard_view)
+        self.stacked_widget.setCurrentWidget(self.dashboard_scroll_area)
         self.login_view.clear_fields()
         # If calibration just finished and session is active in dashboard, ensure MainWindow is also synced.
         # This check becomes less critical with the signal, but acts as a safeguard.
@@ -1670,7 +1892,7 @@ def main():
     app = QApplication(sys.argv)
 
     # Set Application Window Icon
-    app_icon_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'app_logo.jpeg')
+    app_icon_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'ergo-logo.png')
     if os.path.exists(app_icon_path):
         app.setWindowIcon(QIcon(app_icon_path))
     else:

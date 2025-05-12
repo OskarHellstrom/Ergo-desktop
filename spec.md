@@ -1,4 +1,4 @@
-## Developer Specification: [PostureApp] - Desktop Application
+## Developer Specification: Ergo - Desktop Application
 
 **Version:** 1.0 **Date:** May 7, 2025
 
@@ -46,11 +46,11 @@
 
 ### 1. Introduction & Overview
 
-- **Application Name:** [PostureApp] (Placeholder)
+- **Application Name:** Ergo
 - **Purpose:** A desktop application designed to help users improve their posture by providing real-time feedback using their webcam and MediaPipe pose detection technology.
 - **Target Audience:** Desktop computer users who wish to monitor and correct their posture during work or general computer use.
 - **Core Functionality Summary:**
-    - User authentication and subscription validation.
+    - User authentication and subscription validation (Supabase).
     - User-initiated calibration of "good posture" at the start of each session.
     - Real-time webcam-based posture analysis using local MediaPipe Pose detection.
     - Detection of deviations from the calibrated posture (specifically head forwardness and shoulder unevenness).
@@ -78,7 +78,7 @@
 
 - Upon launch, a professional and simple initial screen is displayed.
 - Elements:
-    - Application Name: [PostureApp]
+    - Application Name: Ergo
     - Application Logo
     - Brief one-sentence explanation of the application's purpose.
     - User Login Interface (email/password fields, login button, link to sign-up/forgot password on the web application).
@@ -101,8 +101,8 @@
     - **"Start Session" Button:** Initiates the calibration process and starts posture monitoring.
     - **"Settings" Button:** Opens the application settings view/dialog.
     - **User Account Information:**
-        - Display basic subscription info (e.g., "Subscription: Active until YYYY-MM-DD"). Data fetched from Supabase.
-        - Link/Button: "Manage Subscription" - opens the user's subscription management page on the web application in their default browser.
+        - Display basic subscription info (e.g., "Subscription: Active until YYYY-MM-DD"). (Note: Currently checked but not explicitly displayed on dashboard).
+        - Link/Button: "Manage Subscription" - opens the user's subscription management page on the web application in their default browser (Located in Settings Dialog).
     - **Reminders Graph:**
         - A clean, simple graph displaying the number of posture reminders sent per session over time.
         - X-axis: Date of session.
@@ -111,7 +111,7 @@
 
 #### 3.4. Settings
 
-- Accessible via the "Settings" button on the dashboard and from the system tray/menu bar icon. Settings should also be accessible _during_ an active monitoring session without stopping it, if feasible (e.g., in a non-modal window or by briefly pausing monitoring).
+- Accessible via the "Settings" button on the dashboard and from the system tray/menu bar icon. Settings should also be accessible _during_ an active monitoring session without stopping it (Settings dialog is modal, but applying settings can affect the running session).
 - Settings Options:
     - **Sensitivity for Deviation Detection:**
         - User-adjustable setting (e.g., a slider or dropdown).
@@ -169,7 +169,7 @@
 - Triggered when a deviation exceeding the sensitivity threshold is detected.
 - The type of alert depends on the user's selection in Settings (Section 3.4):
     - **Audio Alert:**
-        - A recorded voice saying: **"Fix the posture."**
+        - A recorded voice saying: **"Fix the posture."** (Using edge-tts for voice generation).
         - Ensure the sound is clear and at an appropriate volume (consider OS volume).
     - **Visual Alert:**
         - A non-modal pop-up message appears on the screen.
@@ -189,10 +189,10 @@
 - A system tray icon (Windows, Linux) or menu bar icon (macOS) must be present when the application is running (especially when monitoring in the background).
     - The icon should visually indicate whether a session is active (if possible, e.g., subtle color change).
 - **Icon Menu Options (Right-click on Windows/Linux, Click on macOS):**
-    - **"Open [PostureApp] Window":** Opens/focuses the main application dashboard.
+    - **"Open Ergo Window":** Opens/focuses the main application dashboard.
     - **"Start Session" / "Stop Session":** Label dynamically changes based on current state. Starts calibration and monitoring, or stops the active session.
     - **"Settings":** Opens the application settings view/dialog.
-    - **"Quit [PostureApp]":** Stops any active session, closes background processes, and exits the application.
+    - **"Quit Ergo":** Stops any active session, closes background processes, and exits the application.
 
 ### 4. Core Technical Implementation Details
 

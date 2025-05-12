@@ -1,77 +1,105 @@
-# PostureApp
+# Ergo
 
-A basic PyQt6 application with a stacked widget for managing multiple views, webcam-based posture detection, and Supabase authentication/subscription management.
+A PyQt6 desktop application for real-time posture monitoring and correction using webcam and MediaPipe.
+
+## Features
+
+- **Real-time Posture Monitoring:** Uses your webcam and MediaPipe Pose to analyze posture locally.
+- **Calibration:** Set your personal "good posture" baseline at the start of each session.
+- **Deviation Alerts:** Receive visual and/or audio notifications when your posture deviates (head forward, shoulders uneven).
+- **Configurable Settings:**
+    - Sensitivity (Low, Medium, High)
+    - Notification Mode (Audio, Visual, Both)
+    - Custom Alert Message
+    - Webcam Selection
+    - Show/Hide Landmarks on Feed
+- **Session Tracking:** View a graph of posture reminders over time.
+- **System Tray Integration:** Runs in the background with controls accessible from the system tray.
+- **Authentication:** Secure login via Supabase (requires an active subscription, see below).
+- **Auto-Update Check:** Notifies if a newer version is available.
 
 ## Setup
 
-1. **Install dependencies:**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   # Or, if you are missing dependencies:
-   pip install PyQt6 opencv-python mediapipe matplotlib python-dotenv requests
-   ```
+1.  **Prerequisites:**
+    *   Python 3.10+
+    *   `pip` (Python package installer)
 
-2. **Download the pose model:**
-   (Already included in the repo, but if needed, run:)
-   ```bash
-   wget -O PostureApp/models/pose_landmarker_heavy.task \
-     https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task
-   ```
+2.  **Install Dependencies:**
+    ```bash
+    # Create and activate a virtual environment (recommended)
+    python3 -m venv .venv
+    source .venv/bin/activate  # On Linux/macOS
+    # .venv\Scripts\activate  # On Windows
 
-3. **Set up your .env file:**
-   Create a `.env` file in the `PostureApp/` directory with:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-   ```
+    # Install packages
+    pip install -r requirements.txt
+    ```
 
-4. **Run the application:**
-   ```bash
-   PostureApp/.venv/bin/python PostureApp/main.py
-   ```
+3.  **MediaPipe Model:**
+    *   The required model (`PostureApp/models/pose_landmarker_heavy.task`) is included in the repository.
+    *   If missing, download it:
+        ```bash
+        mkdir -p PostureApp/models
+        wget -O PostureApp/models/pose_landmarker_heavy.task \
+          https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task
+        ```
+
+4.  **Environment Variables:**
+    *   Create a file named `.env` in the project's root directory (`PostureApp/`).
+    *   Add your Supabase credentials:
+        ```env
+        SUPABASE_URL=your-supabase-url
+        SUPABASE_ANON_KEY=your-supabase-anon-key
+        ```
+    *   *Note:* The `.env` variables in `main.py` previously used `NEXT_PUBLIC_` prefixes. Ensure your `.env` file uses `SUPABASE_URL` and `SUPABASE_ANON_KEY` directly, as expected by the `supabase-py` library now used in `auth_service.py`.
 
 ## Usage
 
-- **Sign Up:**
-  - On the login screen, click the **Sign Up** button.
-  - Enter your email and password, confirm your password, and submit.
-  - Check your email for a verification link and verify your account.
-  - Return to the app and log in with your new credentials.
+1.  **Run the application:**
+    ```bash
+    # Ensure your virtual environment is active
+    python PostureApp/main.py
+    ```
 
-- **Login:**
-  - Enter your email and password and click **Login**.
-  - If your subscription is active, you will be taken to the dashboard.
+2.  **Login:**
+    *   Enter the email and password associated with your Supabase account.
+    *   If you don't have an account, click "Create Account".
+    *   A valid, active subscription is required to proceed past login (managed via Supabase).
 
-- **Subscription:**
-  - Subscriptions are managed by an admin in Supabase.
-  - After signing up, an admin must add a record for your user in the `user_subscriptions` table with:
-    - `user_id`: The user's Supabase Auth ID (find in the Supabase Auth > Users table for your email)
-    - `status`: `active`
-    - `expires_at`: A future date (e.g., `2025-12-31T23:59:59Z`)
-  - Without an active subscription, you cannot access the dashboard.
+3.  **Dashboard:**
+    *   **Start Session:** Click to begin the calibration process.
+        *   Follow the on-screen instructions and example images.
+        *   Sit correctly and click "Capture Good Posture".
+        *   Monitoring begins after successful calibration.
+    *   **Stop Session:** Click to end monitoring and save session reminder data.
+    *   **Settings:** Access application settings (sensitivity, notifications, etc.).
+    *   **Logout:** Sign out of the application.
+    *   **Graph:** Shows historical posture reminder counts per session.
 
-### Example: Making a User a Subscriber (Admin Only)
+4.  **Settings:**
+    *   Adjust sensitivity, notification type, custom message, webcam, and landmark visibility.
+    *   Settings are saved automatically.
+    *   Manage Subscription button links to the online portal.
 
-1. **Find the user's ID:**
-   - Go to Supabase web console > Auth > Users.
-   - Find the user by email (e.g., `oskar.hellstrom@outlook.com`).
-   - Copy the user's `id` (UUID).
+5.  **System Tray:**
+    *   The app runs in the system tray even if the main window is closed.
+    *   Right-click the tray icon for options: Open Window, Start/Stop Session, Settings, Quit.
 
-2. **Insert a subscription record:**
-   - Go to the `user_subscriptions` table in Supabase.
-   - Insert a new row:
-     - `user_id`: (paste the user's UUID)
-     - `status`: `active`
-     - `expires_at`: (e.g., `2025-12-31T23:59:59Z`)
+## Subscription Requirement
 
-3. **User can now log in and access the dashboard.**
-
----
-
-For more details, see the Supabase documentation or contact your system administrator.
+- Access to the dashboard and monitoring features requires an active subscription managed in the Supabase backend.
+- After signing up, an administrator needs to add a record to the `user_subscriptions` table linked to the user's Supabase Auth ID (`user_id`), setting `status` to `active` and providing a valid `expires_at` date.
 
 ## Structure
-- `main.py`: Main application entry point, defines the main window and placeholder views.
-- `requirements.txt`: Python dependencies. 
+
+- `main.py`: Main application logic, UI (MainWindow, LoginView, DashboardView, SettingsDialog, etc.).
+- `auth_service.py`: Handles Supabase authentication.
+- `data_manager.py`: Manages local SQLite database for session data.
+- `styles.qss`: PyQt stylesheet for application appearance.
+- `resources/`: Contains icons and images.
+- `models/`: Contains the MediaPipe pose landmarker model.
+- `requirements.txt`: Python dependencies.
+- `.env`: Environment variables (Supabase URL/Key - **DO NOT COMMIT**).
+- `README.md`: This file.
+- `spec.md`: Application specification details.
+- `todo.md`: Development task tracking. 

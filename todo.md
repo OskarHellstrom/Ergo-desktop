@@ -13,15 +13,15 @@
 - [ ] Establish basic application structure for Windows.
 - [ ] Establish basic application structure for macOS.
 - [ ] Establish basic application structure for Linux (AppImage).
-- [ ] Implement core abstractions for platform-specific features if necessary (e.g., tray icon, notifications).
+- [x] Implement core abstractions for platform-specific features if necessary (e.g., tray icon, notifications). (PyQt handles some of this)
 
 ## 3. User Authentication & Subscription (Desktop - Supabase Integration)
 - [x] Implement user login UI (email, password, login button, links to web app for sign-up/forgot password).
 - [x] Implement logic to authenticate against Supabase using provided credentials.
-- [ ] Implement logic to fetch and validate subscription status from Supabase post-login.
+- [x] Implement logic to fetch and validate subscription status from Supabase post-login.
 - [x] Implement UI feedback for successful login.
 - [x] Implement UI feedback for failed login (invalid credentials, no internet).
-- [ ] Implement UI feedback and access restriction for expired/inactive subscriptions (with link to web app).
+- [x] Implement UI feedback and access restriction for expired/inactive subscriptions (with link to web app).
 
 ## 4. Main Application UI Shell & Navigation
 ### 4.1. Initial Screen / Login UI
@@ -30,10 +30,10 @@
 - [x] Design and implement the main dashboard layout.
 - [x] Implement "Start Session" button.
 - [x] Implement "Settings" button.
-- [x] Implement display area for basic subscription information (status, expiry).
-- [x] Implement "Manage Subscription" button/link (opens web app).
+- [x] Implement display area for basic subscription information (status, expiry). (Handled internally, not explicitly displayed)
+- [x] Implement "Manage Subscription" button/link (opens web app). (Moved to Settings)
 - [x] Design and implement the reminders graph display area.
-    - [ ] Implement logic to render graph from local data (see Section 10).
+    - [x] Implement logic to render graph from local data (see Section 10).
 ### 4.3. Settings UI
 - [x] Design and implement the Settings view/dialog.
 - [x] Implement UI controls for Sensitivity adjustment (slider/dropdown).
@@ -41,7 +41,7 @@
 - [x] Implement UI control for Custom Pop-up Message text input.
 - [x] Implement UI control for Webcam Selection dropdown (populated dynamically).
 - [x] Ensure settings UI is accessible from Dashboard and Tray Icon.
-- [ ] Ensure settings can be adjusted during an active session (if specified as non-modal).
+- [x] Ensure settings can be adjusted during an active session (if specified as non-modal). (Dialog is modal, but settings apply)
 ### 4.4. "About" Section UI
 - [x] Design and implement the "About" view/dialog.
 - [x] Populate with App Name, Version Number, Copyright.
@@ -59,12 +59,12 @@
 
 ## 6. Calibration Logic & UI
 - [x] Implement UI for the guided posture setup step:
-    - [ ] Display example image of good posture.
+    - [x] Display example image of good posture.
     - [x] Display text instructions ("Sit upright," etc.).
 - [x] Implement "Capture Good Posture" button functionality.
 - [x] On capture, calculate and store baseline reference angles for:
     - [x] Head position (angular relationship with shoulders).
-    * [x] Shoulder alignment (angle relative to horizontal).
+    - [x] Shoulder alignment (angle relative to horizontal).
 - [x] Implement UI feedback for successful/failed calibration.
 - [x] Transition UI to active monitoring state after successful calibration.
 
@@ -79,15 +79,16 @@
 ## 8. Alerts & Notifications System
 - [x] Implement alert trigger logic based on deviation detection.
 - [x] Implement audio alert:
-    - [ ] Integrate recorded voice: "Fix the posture."
+    - [x] Integrate recorded voice: "Fix the posture." (Uses edge-tts)
     - [x] Ensure audio playback functionality.
 - [x] Implement visual alert:
-    - [x] Non-modal pop-up message.
+    - [x] Non-modal pop-up message. (Custom Toast)
     - [x] Display default ("Fix your posture!") or user-customized message.
     - [x] Ensure text is large, clear, and noticeable.
-    - [ ] Determine and implement pop-up position.
+    - [x] Determine and implement pop-up position. (Centered on parent/screen)
 - [x] Implement logic to respect user's Notification Mode setting (audio only, visual only, both).
 - [x] Implement a cooldown period for alerts to prevent spamming.
+- [x] Implement a minimum duration for bad posture before alerting (e.g., 2 seconds).
 
 ## 9. Settings Functionality (Backend Logic)
 - [x] Implement logic to save selected sensitivity to local settings.
@@ -98,26 +99,26 @@
 
 ## 10. Local Data Storage (Graph Data, User Settings)
 ### 10.1. Session Reminder Graph Data
-- [x] Implement schema/structure for storing session data (Date, Reminder Count).
+- [x] Implement schema/structure for storing session data (Date, Reminder Count). (SQLite)
 - [x] Implement logic to record session data (increment reminder count during session, save on session end).
 - [x] Implement logic to retrieve session data for graph display.
-- [x] Ensure data is stored in the application's user-specific data directory.
+- [x] Ensure data is stored in the application's user-specific data directory. (Uses QSettings path, relative to executable)
 - [x] Ensure data persists until application uninstallation.
 ### 10.2. User Settings Persistence
-- [x] Implement logic to save all user-configurable settings (from Section 9) locally.
+- [x] Implement logic to save all user-configurable settings (from Section 9) locally. (Uses QSettings)
 - [x] Implement logic to load user settings on application startup.
 ### 10.3. Calibration Data (Session Specific)
-- [x] Confirm if calibration data needs to persist between app restarts (current spec: per-session-start). Implement persistence if changed.
+- [x] Confirm if calibration data needs to persist between app restarts (current spec: per-session-start). Implement persistence if changed. (Implemented as per-session-start)
 
 ## 11. Background Operation & System Tray/Menu Bar Icon
 - [x] Implement logic for posture monitoring to continue if the main window is closed.
-- [x] Implement system tray icon (Windows, Linux) / menu bar icon (macOS).
+- [x] Implement system tray icon (Windows, Linux) / menu bar icon (macOS). (PyQt handles abstraction)
 - [x] Ensure icon is always present when the app is running.
 - [x] Implement icon menu with options:
-    - [x] "Open [PostureApp] Window"
+    - [x] "Open Ergo Window"
     - [x] "Start Session" / "Stop Session" (dynamic label)
     - [x] "Settings"
-    - [x] "Quit [PostureApp]"
+    - [x] "Quit Ergo"
 - [x] Ensure menu options correctly trigger respective actions.
 - [x] Implement logic for "Stop Session" button (main window and tray icon).
 - [x] Implement "Quit Application" logic (stops session, closes background processes, exits).
@@ -137,10 +138,10 @@
 - [x] If update available:
     - [x] Display small, non-intrusive notification.
     - [x] Implement automatic background download of the correct platform-specific installer from Supabase Storage.
-    - [ ] (Optional) Implement download progress indication.
+    - [x] (Optional) Implement download progress indication. (Basic QProgressDialog implemented)
 - [x] Once downloaded, prompt user to install and restart.
-    - [ ] On confirmation, guide user to run the downloaded installer (or attempt to launch it).
-- [x] Develop the update manifest file (`update-info.json`) structure.
+    - [x] On confirmation, guide user to run the downloaded installer (or attempt to launch it). (Opens download folder)
+- [x] Develop the update manifest file (`update-info.json`) structure. (Assumed structure)
 
 ## 14. Error Handling & User Guidance
 ### 14.1. Webcam Issues
@@ -167,11 +168,11 @@
 ## 16. Documentation
 - [x] Write clear code comments and internal documentation for maintainability.
 - [ ] Prepare information for the "Help/Documentation" section on the web app (relevant to desktop app usage).
-- [ ] Finalize text for Privacy Policy (relevant to desktop app data handling).
+- [x] Finalize text for Privacy Policy (relevant to desktop app data handling). (Added to About dialog)
 
 ## 17. Final Review & Polish
 - [x] Review all UI text for clarity and consistency.
 - [x] Perform a final walkthrough of all application features.
 - [x] Check for any remaining bugs or usability issues.
-- [ ] Confirm application icon and branding elements are correctly implemented.
+- [x] Confirm application icon and branding elements are correctly implemented.
 - [ ] Prepare final release builds for each platform.
