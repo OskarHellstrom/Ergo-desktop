@@ -84,4 +84,8 @@ dmypy.json
 .vscode/
 .idea/
 *.swp
-*.swo 
+*.swo
+
+# Build artifacts
+Ergo-x86_64.AppImage
+Ergo.AppDir/ 

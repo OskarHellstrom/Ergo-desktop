@@ -1,0 +1,21 @@
+#!/bin/sh
+HERE=$(dirname "$(readlink -f "$0")")
+
+export LD_LIBRARY_PATH="$HERE/lib:$LD_LIBRARY_PATH"
+export QT_PLUGIN_PATH="$HERE/plugins:$HERE/PyQt6/Qt6/plugins:$QT_PLUGIN_PATH"
+export QML2_IMPORT_PATH="$HERE/PyQt6/Qt6/qml:$QML2_IMPORT_PATH"
+
+# Debug: List files in key Qt plugin directories if they exist
+if [ -d "$HERE/PyQt6/Qt6/plugins/platforms" ]; then
+  echo "AppRun: Contents of $HERE/PyQt6/Qt6/plugins/platforms:"
+  ls -la "$HERE/PyQt6/Qt6/plugins/platforms"
+fi
+if [ -d "$HERE/plugins/platforms" ]; then
+  echo "AppRun: Contents of $HERE/plugins/platforms:"
+  ls -la "$HERE/plugins/platforms"
+fi
+
+# Change to the directory where the executable is, if necessary
+# cd "$HERE"
+
+exec "$HERE/main" "$@" 

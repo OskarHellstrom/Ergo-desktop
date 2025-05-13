@@ -1,8 +1,45 @@
 import sqlite3
 import os
 from datetime import datetime
+from PyQt6.QtCore import QStandardPaths, QCoreApplication # QCoreApplication for app name/org if not already set
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'posture_stats.db')
+# Ensure an application instance exists for QStandardPaths if not run from main.py directly
+# This is primarily for robustness if data_manager is used in a context where main.py hasn't set these.
+# However, in our bundled app, main.py will always run first.
+_app_instance_exists = QCoreApplication.instance() is not None
+if not _app_instance_exists:
+    # These must match main.py for consistency
+    QCoreApplication.setOrganizationName("devdash AB")
+    QCoreApplication.setApplicationName("Ergo")
+
+# Define these constants, ensuring they match main.py if they are to be used by QStandardPaths indirectly
+# For direct use in path construction, they are fine here.
+ORGANIZATION_NAME = "devdash AB"
+APPLICATION_NAME = "Ergo"
+
+# Get the application data directory
+# app_data_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
+# For Linux, AppDataLocation might be ~/.local/share/devdash AB/Ergo.
+# Let's use AppConfigLocation which is often ~/.config/devdash AB/Ergo for config-like data,
+# or GenericDataLocation for more general data. AppDataLocation is good.
+
+app_data_dir_base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
+if not app_data_dir_base: # Fallback if AppDataLocation is somehow not writable/available
+    app_data_dir_base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.GenericDataLocation)
+if not app_data_dir_base: # Further fallback to user's home directory
+    app_data_dir_base = os.path.expanduser("~")
+    # In this extreme fallback, create a hidden subdir to avoid cluttering home
+    APP_DIR_IN_HOME = f".{APPLICATION_NAME.lower()}_data"
+    final_app_data_path = os.path.join(app_data_dir_base, APP_DIR_IN_HOME, APPLICATION_NAME)
+else:
+    # Standard path construction
+    final_app_data_path = os.path.join(app_data_dir_base, ORGANIZATION_NAME, APPLICATION_NAME)
+
+# Ensure the directory exists
+os.makedirs(final_app_data_path, exist_ok=True)
+
+DB_PATH = os.path.join(final_app_data_path, 'posture_stats.db')
+# print(f"[DEBUG data_manager] DB_PATH set to: {DB_PATH}") # For debugging
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)

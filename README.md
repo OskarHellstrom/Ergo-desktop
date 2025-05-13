@@ -55,35 +55,125 @@ A PyQt6 desktop application for real-time posture monitoring and correction usin
 
 ## Usage
 
-1.  **Run the application:**
+1.  **Clone the repository:**
     ```bash
-    # Ensure your virtual environment is active
-    python PostureApp/main.py
+    git clone https://your-repository-url.git
+    cd PostureApp
+    ```
+2.  **Create and activate a virtual environment:**
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+    ```
+3.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+4.  **Set up Supabase (if not already done):**
+    *   Ensure your Supabase URL and Anon Key are correctly configured (e.g., in `.env` or `auth_service.py`).
+5.  **Run the application:**
+    ```bash
+    python main.py
     ```
 
-2.  **Login:**
-    *   Enter the email and password associated with your Supabase account.
-    *   If you don't have an account, click "Create Account".
-    *   A valid, active subscription is required to proceed past login (managed via Supabase).
+## Packaging with PyInstaller
 
-3.  **Dashboard:**
-    *   **Start Session:** Click to begin the calibration process.
-        *   Follow the on-screen instructions and example images.
-        *   Sit correctly and click "Capture Good Posture".
-        *   Monitoring begins after successful calibration.
-    *   **Stop Session:** Click to end monitoring and save session reminder data.
-    *   **Settings:** Access application settings (sensitivity, notifications, etc.).
-    *   **Logout:** Sign out of the application.
-    *   **Graph:** Shows historical posture reminder counts per session.
+This project uses PyInstaller to create distributable executables.
 
-4.  **Settings:**
-    *   Adjust sensitivity, notification type, custom message, webcam, and landmark visibility.
-    *   Settings are saved automatically.
-    *   Manage Subscription button links to the online portal.
+### Prerequisites
 
-5.  **System Tray:**
-    *   The app runs in the system tray even if the main window is closed.
-    *   Right-click the tray icon for options: Open Window, Start/Stop Session, Settings, Quit.
+1.  Ensure you have Python and your project's virtual environment set up.
+2.  Activate your virtual environment:
+    ```bash
+    source .venv/bin/activate
+    ```
+3.  Install PyInstaller if you haven't already (it should also be in `requirements.txt`):
+    ```bash
+    .venv/bin/python -m pip install pyinstaller
+    ```
+    If `pyinstaller` is listed in your `requirements.txt`, the regular `pip install -r requirements.txt` would have installed it.
+
+### Building the Application
+
+The project includes a `main.spec` file which is configured to bundle all necessary scripts, resources (like images and stylesheets), and MediaPipe models.
+
+To build the application, run the following command from the project root directory:
+
+```bash
+.venv/bin/python -m PyInstaller main.spec --noconfirm
+```
+
+### Output
+
+The bundled application will be located in the `dist/main` directory. This directory contains the executable and all its dependencies.
+
+### Notes
+
+*   The `main.spec` file is critical for a successful build. It includes specific paths to data files.
+*   The current build process creates a "one-folder" bundle. The entire `dist/main` directory is needed to run the application.
+*   If you modify resource paths or add new dependencies, you might need to update `main.py` (to use the `resource_path()` utility function for any new resources) and potentially `main.spec` if new data files need to be explicitly included.
+
+### Creating a Linux AppImage
+
+To package the application as a portable AppImage for Linux:
+
+1.  **Build with PyInstaller:** First, ensure you have a working PyInstaller build in `dist/main` by running:
+    ```bash
+    .venv/bin/python -m PyInstaller main.spec --noconfirm
+    ```
+
+2.  **Get `appimagetool`:** Download the `appimagetool` utility (e.g., `appimagetool-x86_64.AppImage`) from [AppImageKit releases](https://github.com/AppImage/AppImageKit/releases) and place it in your project root. Make it executable:
+    ```bash
+    wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage # Or download manually
+    chmod +x appimagetool-x86_64.AppImage
+    ```
+
+3.  **Prepare `.desktop` and `AppRun` files:**
+    *   Ensure you have an `ergo.desktop` file in your project root with content similar to this (adjust `Version` and `Comment` as needed):
+        ```desktop
+        [Desktop Entry]
+        Version=1.1
+        Name=Ergo
+        Comment=Improve your posture with real-time feedback.
+        Exec=main
+        Icon=ergo
+        Terminal=false
+        Type=Application
+        Categories=Utility
+        ```
+    *   Ensure you have an `AppRun` script in your project root. This script is the entry point for the AppImage. A basic version:
+        ```sh
+        #!/bin/sh
+        HERE=$(dirname "$(readlink -f "$0")")
+        export LD_LIBRARY_PATH="$HERE/lib:$LD_LIBRARY_PATH"
+        export QT_PLUGIN_PATH="$HERE/plugins:$HERE/PyQt6/Qt6/plugins:$QT_PLUGIN_PATH"
+        export QML2_IMPORT_PATH="$HERE/PyQt6/Qt6/qml:$QML2_IMPORT_PATH"
+        exec "$HERE/main" "$@"
+        ```
+        Make sure `AppRun` is executable (`chmod +x AppRun`).
+
+4.  **Create the AppImage:** Run the following commands from your project root. This will create an `Ergo.AppDir` directory, populate it, and then use `appimagetool` to generate `Ergo-x86_64.AppImage`.
+    ```bash
+    # Clean up previous attempts (optional, but good practice)
+    rm -rf Ergo.AppDir Ergo-x86_64.AppImage 
+
+    # Create and populate AppDir
+    mkdir -p Ergo.AppDir
+    cp -r dist/main/* Ergo.AppDir/
+    cp ergo.desktop Ergo.AppDir/
+    cp resources/icons/ergo-logo.png Ergo.AppDir/ergo.png # Icon referred by .desktop
+    cp AppRun Ergo.AppDir/
+    chmod +x Ergo.AppDir/AppRun
+
+    # Build the AppImage (ensure appimagetool is in the current path or use ./appimagetool-x86_64.AppImage)
+    ./appimagetool-x86_64.AppImage Ergo.AppDir
+    ```
+
+5.  **Run:**
+    ```bash
+    chmod +x Ergo-x86_64.AppImage
+    ./Ergo-x86_64.AppImage
+    ```
 
 ## Subscription Requirement
 
@@ -102,4 +192,8 @@ A PyQt6 desktop application for real-time posture monitoring and correction usin
 - `.env`: Environment variables (Supabase URL/Key - **DO NOT COMMIT**).
 - `README.md`: This file.
 - `spec.md`: Application specification details.
-- `todo.md`: Development task tracking. 
+- `todo.md`: Development task tracking.
+
+## Contributing
+
+Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to contribute to this project. 

@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QSize, Qt, QUrl, QThread, pyqtSignal, QSettings, QTimer, QEvent, QPropertyAnimation, QEasingCurve, QRect, QPoint
 from PyQt6.QtGui import QPixmap, QFont, QCursor, QDesktopServices, QImage, QIcon, QAction, QColor
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 from auth_service import supabase
 from datetime import datetime, timezone
 import cv2
@@ -29,10 +30,27 @@ import platform
 import time
 from requests.exceptions import ConnectionError
 
+# Global variable to hold the main server instance
+_main_local_server = None
+
+# Add the resource_path function here
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        # Not running in a PyInstaller bundle
+        # Use os.path.dirname(__file__) to ensure path is relative to main.py
+        # even if CWD is different.
+        base_path = os.path.abspath(os.path.dirname(__file__))
+    return os.path.join(base_path, relative_path)
+
 POSE_MODEL_PATH = "PostureApp/models/pose_landmarker_heavy.task"
 # DEFAULT_SENSITIVITY_DEGREES = 25 # This is not directly used for the dynamic threshold
 CURRENT_APP_VERSION = "1.0.0"
 UPDATE_INFO_URL = "https://example.com/update-info.json"  # Replace with actual URL
+WEB_APP_BASE_URL = "http://localhost:3000" # Base URL for the web application
 
 # New Constants for secondary posture checks - These will be removed/modified
 # SHOULDER_VERTICAL_DIFF_RATIO = 0.1  # 10% of inter-shoulder distance for vertical imbalance
@@ -127,12 +145,14 @@ class CustomNotificationToast(QWidget):
 
 def load_stylesheet(app):
     try:
-        with open("styles.qss", "r") as f:
+        # Use resource_path to locate styles.qss
+        stylesheet_file_path = resource_path("styles.qss")
+        with open(stylesheet_file_path, "r") as f:
             stylesheet = f.read()
             app.setStyleSheet(stylesheet)
-            print("Stylesheet 'styles.qss' loaded successfully.")
+            print(f"Stylesheet '{stylesheet_file_path}' loaded successfully.")
     except FileNotFoundError:
-        print("Warning: styles.qss not found. Using default styles.")
+        print(f"Warning: styles.qss not found at '{resource_path("styles.qss")}'. Using default styles.")
     except Exception as e:
         print(f"Error loading stylesheet: {e}")
 
@@ -328,7 +348,8 @@ class LoginView(QWidget):
         # Logo
         logo_label = QLabel()
         logo_pixmap_size = 120
-        logo_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'ergo-logo.png')
+        # Use resource_path here
+        logo_path = resource_path(os.path.join('resources', 'icons', 'ergo-logo.png'))
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)
             logo_label.setPixmap(pixmap.scaled(logo_pixmap_size, logo_pixmap_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
@@ -401,7 +422,8 @@ class LoginView(QWidget):
         link_label.setObjectName("ForgotPasswordLink") # Added objectName
         link_label.setProperty("class", "BodySecondary") # Keep class for general BodySecondary styling
         link_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
-        link_label.setOpenExternalLinks(False)
+        link_label.setOpenExternalLinks(False) # We handle this manually now
+        link_label.linkActivated.connect(lambda: QDesktopServices.openUrl(QUrl(f"{WEB_APP_BASE_URL}/forgot-password")))
         link_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         links_hbox.addWidget(link_label)
 
@@ -410,8 +432,9 @@ class LoginView(QWidget):
         self.setLayout(layout)
 
     def open_signup_dialog(self):
-        dialog = SignUpDialog(self)
-        dialog.exec()
+        # dialog = SignUpDialog(self)
+        # dialog.exec()
+        QDesktopServices.openUrl(QUrl(f"{WEB_APP_BASE_URL}/signup"))
 
     def handle_login(self):
         email = self.email_input.text().strip()
@@ -478,7 +501,7 @@ class LoginView(QWidget):
                     except Exception:
                         pass
                     self.error_label.setText(
-                        'Your subscription has expired or is inactive. Please visit <a href="https://app.supabase.com">Subscription Page</a> to renew.'
+                        f'Your subscription has expired or is inactive. Please visit <a href="{WEB_APP_BASE_URL}/dashboard">Subscription Page</a> to renew.'
                     )
                     self.error_label.setOpenExternalLinks(True)
                     self.error_label.show()
@@ -942,7 +965,8 @@ class DashboardView(QWidget):
 
         image_height = 360 # Desired height for the example images
 
-        front_image_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'calibration_posture.jpg')
+        # Use resource_path here
+        front_image_path = resource_path(os.path.join('resources', 'icons', 'calibration_posture.jpg'))
         if os.path.exists(front_image_path):
             front_pixmap = QPixmap(front_image_path)
             self.front_view_image_label.setPixmap(front_pixmap.scaledToHeight(image_height, Qt.TransformationMode.SmoothTransformation))
@@ -952,7 +976,8 @@ class DashboardView(QWidget):
         self.front_view_image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         image_container_layout.addWidget(self.front_view_image_label)
 
-        side_image_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'side_posture.jpg')
+        # Use resource_path here
+        side_image_path = resource_path(os.path.join('resources', 'icons', 'side_posture.jpg'))
         if os.path.exists(side_image_path):
             side_pixmap = QPixmap(side_image_path)
             self.side_view_image_label.setPixmap(side_pixmap.scaledToHeight(image_height, Qt.TransformationMode.SmoothTransformation))
@@ -1564,8 +1589,9 @@ class AboutDialog(QDialog):
         layout = QVBoxLayout()
         layout.setSpacing(14)
 
-        # App name
-        app_name = QLabel("Ergo")
+        # App name - now a clickable link
+        app_name = QLabel(f'<a href="{WEB_APP_BASE_URL}/about">Ergo</a>')
+        app_name.setOpenExternalLinks(True) # Allow clicking the link
         font = QFont()
         font.setPointSize(22)
         font.setBold(True)
@@ -1601,16 +1627,20 @@ class AboutDialog(QDialog):
 
         # Links
         links_layout = QVBoxLayout()
-        privacy_link = QLabel('<a href="https://example.com/privacy">Privacy Policy</a>')
+        privacy_link = QLabel(f'<a href="{WEB_APP_BASE_URL}/privacy-policy">Privacy Policy</a>')
         privacy_link.setOpenExternalLinks(True)
         privacy_link.setWordWrap(True)
-        help_link = QLabel('<a href="https://example.com/help">Help/Documentation</a>')
+        help_link = QLabel(f'<a href="{WEB_APP_BASE_URL}/help">Help/Documentation</a>')
         help_link.setOpenExternalLinks(True)
         help_link.setWordWrap(True)
-        contact_link = QLabel('<a href="https://example.com/contact">Contact Us/Support</a>')
+        contact_link = QLabel(f'<a href="{WEB_APP_BASE_URL}/contact">Contact Us/Support</a>')
         contact_link.setOpenExternalLinks(True)
         contact_link.setWordWrap(True)
-        for link in (privacy_link, help_link, contact_link):
+        terms_link = QLabel(f'<a href="{WEB_APP_BASE_URL}/terms-of-service">Terms of Service</a>') # Added Terms link
+        terms_link.setOpenExternalLinks(True)
+        terms_link.setWordWrap(True)
+
+        for link in (privacy_link, help_link, contact_link, terms_link): # Added terms_link
             link.setAlignment(Qt.AlignmentFlag.AlignCenter)
             links_layout.addWidget(link)
         layout.addLayout(links_layout)
@@ -1668,8 +1698,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle('Ergo')
 
-        # Define icon path
-        self.icon_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'ergo-logo.png')
+        # Define icon path using resource_path
+        self.icon_path = resource_path(os.path.join('resources', 'icons', 'ergo-logo.png'))
 
         # Menu bar
         menubar = self.menuBar()
@@ -1876,11 +1906,19 @@ class MainWindow(QMainWindow):
              if self.isFullScreen():
                  self.fullscreen_action.setChecked(True)
              else:
-                 # If fixed size was set, reapply it when exiting fullscreen
-                 # This is no longer needed as fixed size is removed
-                 # if not self.isMaximized(): # Avoid re-setting fixed size if just maximized
-                 #    self.setFixedSize(QSize(800, 600))
                  self.fullscreen_action.setChecked(False)
+
+    def handle_new_instance_connection(self):
+        global _main_local_server # Access the global server instance
+        if _main_local_server:
+            client_connection = _main_local_server.nextPendingConnection()
+            if client_connection:
+                # Wait for the message from the client (the new instance)
+                if client_connection.waitForReadyRead(250): # 250ms timeout
+                    message = client_connection.readAll().data().decode()
+                    if message == "show_yourself":
+                        self.show_and_raise() # Use existing method to show and activate
+                client_connection.close()
 
 def main():
     # Ensure the app scales reasonably on high-DPI displays
@@ -1891,8 +1929,55 @@ def main():
 
     app = QApplication(sys.argv)
 
+    # --- Single Instance Logic --- 
+    global _main_local_server # So we can assign to it
+    server_name = f"{ORGANIZATION_NAME}_{APPLICATION_NAME}_InstanceLock"
+
+    socket = QLocalSocket()
+    socket.connectToServer(server_name)
+
+    if socket.waitForConnected(500): # Timeout 500ms
+        # Connected to an existing instance. Send a message to raise its window.
+        socket.write(b"show_yourself")
+        socket.flush()
+        socket.waitForBytesWritten(200)
+        socket.close()
+        # print("Another instance is already running. Exiting.") # Optional debug
+        sys.exit(0) # This instance exits
+    else:
+        # Cannot connect, so this instance becomes the server.
+        # Try to remove a stale server file if it exists (important on Unix-like systems)
+        QLocalServer.removeServer(server_name)
+        
+        _main_local_server = QLocalServer()
+        # WorldAccessOption allows other users on the same machine to trigger it too, 
+        # UserAccessOption is usually sufficient and more secure if only same user.
+        _main_local_server.setSocketOptions(QLocalServer.SocketOption.UserAccessOption) 
+
+        if not _main_local_server.listen(server_name):
+            # If listen still fails, another instance might have started in a race condition
+            # or there's a more persistent issue.
+            if _main_local_server.serverError() == QLocalServer.ServerSocketError.AddressInUseError:
+                 # Could attempt to connect again as client one last time before failing
+                socket.connectToServer(server_name)
+                if socket.waitForConnected(200):
+                    socket.write(b"show_yourself")
+                    socket.flush()
+                    socket.waitForBytesWritten(200)
+                    socket.close()
+                    sys.exit(0)
+                else:
+                    QMessageBox.critical(None, "Application Startup Error",
+                                     f"Failed to start. Another instance might be running or locked. Please try again or check task manager. Error: Address in use.")
+                    sys.exit(1)
+            else:
+                QMessageBox.critical(None, "Application Startup Error",
+                                     f"Could not start the local server: {_main_local_server.errorString()}")
+                sys.exit(1)
+    # --- End Single Instance Logic ---
+
     # Set Application Window Icon
-    app_icon_path = os.path.join(os.path.dirname(__file__), 'resources', 'icons', 'ergo-logo.png')
+    app_icon_path = resource_path(os.path.join('resources', 'icons', 'ergo-logo.png'))
     if os.path.exists(app_icon_path):
         app.setWindowIcon(QIcon(app_icon_path))
     else:
@@ -1905,8 +1990,20 @@ def main():
     init_db()
 
     window = MainWindow()
+    
+    # Connect the server's newConnection signal if it was created
+    if _main_local_server:
+        _main_local_server.newConnection.connect(window.handle_new_instance_connection)
+
     window.show()
-    sys.exit(app.exec())
+    exit_code = app.exec()
+    
+    # Clean up server on exit
+    if _main_local_server:
+        _main_local_server.close()
+        QLocalServer.removeServer(server_name) # Clean up the named socket/pipe if it exists
+
+    sys.exit(exit_code)
 
 if __name__ == '__main__':
     main() 

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.1
+Name=Ergo
+Comment=Improve your posture with real-time feedback.
+Exec=main
+Icon=ergo
+Terminal=false
+Type=Application
+Categories=Utility
