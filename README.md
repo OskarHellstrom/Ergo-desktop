@@ -124,12 +124,14 @@ To package the application as a portable AppImage for Linux:
 
 2.  **Get `appimagetool`:** Download the `appimagetool` utility (e.g., `appimagetool-x86_64.AppImage`) from [AppImageKit releases](https://github.com/AppImage/AppImageKit/releases) and place it in your project root. Make it executable:
     ```bash
-    wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage # Or download manually
-    chmod +x appimagetool-x86_64.AppImage
+    # Example:
+    # wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+    # chmod +x appimagetool-x86_64.AppImage
     ```
+    *(Ensure you have `appimagetool-x86_64.AppImage` in your project root for the next commands, or adjust paths accordingly).*
 
 3.  **Prepare `.desktop` and `AppRun` files:**
-    *   Ensure you have an `ergo.desktop` file in your project root with content similar to this (adjust `Version` and `Comment` as needed):
+    *   Ensure you have an `ergo.desktop` file in your project root with content similar to this:
         ```desktop
         [Desktop Entry]
         Version=1.1
@@ -141,13 +143,14 @@ To package the application as a portable AppImage for Linux:
         Type=Application
         Categories=Utility
         ```
-    *   Ensure you have an `AppRun` script in your project root. This script is the entry point for the AppImage. A basic version:
+    *   Ensure you have an `AppRun` script in your project root. This script is the entry point for the AppImage. A suitable version:
         ```sh
         #!/bin/sh
         HERE=$(dirname "$(readlink -f "$0")")
         export LD_LIBRARY_PATH="$HERE/lib:$LD_LIBRARY_PATH"
         export QT_PLUGIN_PATH="$HERE/plugins:$HERE/PyQt6/Qt6/plugins:$QT_PLUGIN_PATH"
         export QML2_IMPORT_PATH="$HERE/PyQt6/Qt6/qml:$QML2_IMPORT_PATH"
+        # Optional: Add any other environment variable setups needed by your app
         exec "$HERE/main" "$@"
         ```
         Make sure `AppRun` is executable (`chmod +x AppRun`).
