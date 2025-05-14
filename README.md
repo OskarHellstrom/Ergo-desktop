@@ -178,6 +178,48 @@ To package the application as a portable AppImage for Linux:
     ./Ergo-x86_64.AppImage
     ```
 
+### Creating a Windows Executable
+
+To package the application as an executable for Windows:
+
+1.  **Environment Setup:**
+    *   You must run these steps on a Windows machine (or a Windows virtual machine).
+    *   Ensure you have Python installed on Windows and added to your system's PATH.
+    *   Clone the project repository to your Windows environment.
+    *   Create and activate a virtual environment:
+        ```bash
+        python -m venv .venv
+        .venv\Scripts\activate
+        ```
+    *   Install dependencies:
+        ```bash
+        pip install -r requirements.txt
+        ```
+    *   Install PyInstaller (if not already in `requirements.txt` specifically for Windows builds):
+        ```bash
+        pip install pyinstaller
+        ```
+
+2.  **Modify `main.spec` (Icon Handling):
+    *   PyInstaller can bundle an `.ico` file for the application icon on Windows.
+    *   Ensure your `main.spec` file's `exe` section has the `icon` parameter pointing to a valid `.ico` file (e.g., `icon='resources/icons/ergo-logo.ico'`). You might need to convert your `ergo-logo.png` to an `ergo-logo.ico` file using an online converter or a tool like GIMP or ImageMagick.
+    *   The `console=False` setting in `main.spec` will ensure no command window appears when the GUI app runs.
+
+3.  **Build with PyInstaller:**
+    *   Run PyInstaller using the `.spec` file:
+        ```bash
+        python -m PyInstaller main.spec --noconfirm
+        ```
+    *   This will create a `dist\main` directory containing your executable (`main.exe`) and all its dependencies.
+
+4.  **Testing:**
+    *   Navigate to `dist\main` and run `main.exe`.
+
+5.  **Distribution (Optional - Creating a Single Installer File):
+    *   The `dist\main` folder contains everything needed. You can zip this folder and distribute it.
+    *   For a more professional single-file installer (`.exe` or `.msi`), you would typically use a third-party installer creation tool like Inno Setup (free) or NSIS (free). These tools can take the output from PyInstaller's `dist/main` folder and package it into a guided installer, create shortcuts, allow uninstallation, etc.
+        *   **Example (Inno Setup):** You would write an Inno Setup script (`.iss`) that specifies the files from `dist/main`, where to install them, shortcuts to create, etc., and then compile that script with Inno Setup to produce a single `setup.exe`.
+
 ## Subscription Requirement
 
 - Access to the dashboard and monitoring features requires an active subscription managed in the Supabase backend.
@@ -192,11 +234,19 @@ To package the application as a portable AppImage for Linux:
 - `resources/`: Contains icons and images.
 - `models/`: Contains the MediaPipe pose landmarker model.
 - `requirements.txt`: Python dependencies.
-- `.env`: Environment variables (Supabase URL/Key - **DO NOT COMMIT**).
+- `.env`: Environment variables (Supabase URL/Key). This file is bundled with the AppImage. To use your own Supabase project, edit the `.env` file in the same directory as the AppImage before running it, or repackage the AppImage with your own `.env`.
 - `README.md`: This file.
 - `spec.md`: Application specification details.
 - `todo.md`: Development task tracking.
 
 ## Contributing
 
-Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to contribute to this project. 
+Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to contribute to this project.
+
+### Environment Variables and AppImage
+
+The `.env` file is bundled inside the AppImage. If you need to use your own Supabase credentials:
+
+1.  Edit the `.env` file in your project root before building the AppImage, then rebuild.
+2.  Or, after extracting the AppImage (using `--appimage-extract`), replace the `.env` file in the extracted directory and repackage if needed.
+3.  The application will always load the `.env` file from the same directory as the executable, so you can update it as needed for different deployments. 

@@ -29,22 +29,10 @@ import shutil
 import platform
 import time
 from requests.exceptions import ConnectionError
+from utils import resource_path
 
 # Global variable to hold the main server instance
 _main_local_server = None
-
-# Add the resource_path function here
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        # Not running in a PyInstaller bundle
-        # Use os.path.dirname(__file__) to ensure path is relative to main.py
-        # even if CWD is different.
-        base_path = os.path.abspath(os.path.dirname(__file__))
-    return os.path.join(base_path, relative_path)
 
 POSE_MODEL_PATH = "PostureApp/models/pose_landmarker_heavy.task"
 # DEFAULT_SENSITIVITY_DEGREES = 25 # This is not directly used for the dynamic threshold
@@ -802,37 +790,52 @@ class SessionGraphCanvas(FigureCanvas):
         if live_reminder_data and len(live_reminder_data) > 1:
             time_data = [item[0] for item in live_reminder_data]
             count_data = [item[1] for item in live_reminder_data]
-            self.ax.plot(time_data, count_data, marker='o', linestyle='-', color='#00C853', linewidth=2, markersize=5)
+            
+            # Clean line, no markers
+            self.ax.plot(time_data, count_data, linestyle='-', color='#00C853', linewidth=2) 
+            
             self.ax.set_title('Live Reminders This Session')
             self.ax.set_xlabel('Time Elapsed (seconds)')
             self.ax.set_ylabel('Cumulative Reminders')
-            self.ax.set_ylim(bottom=0) # Restore dynamic Y limit
+            
             max_y = max(count_data) if count_data else 0
-            self.ax.set_yticks(range(0, max_y + 2)) # Restore dynamic Y ticks
-            self.ax.set_xlim(left=0) # Restore dynamic X limit
-            # self.ax.set_xticks can be left to matplotlib's auto-ticker or customized if needed
+            
+            # Y-axis ticks: 0 and current max count
+            yticks = [0]
+            if max_y > 0:
+                yticks.append(max_y)
+            
+            self.ax.set_yticks(yticks)
+            # Adjust Y-limit to give some space above the max_y tick
+            self.ax.set_ylim(bottom=-0.5, top=max_y + 1.5 if max_y > 0 else 1.5) 
+            
+            self.ax.set_xlim(left=0) 
             self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
+
         elif live_reminder_data and len(live_reminder_data) == 1 and live_reminder_data[0][0] == 0 and live_reminder_data[0][1] == 0:
-            self.ax.plot([0], [0], marker='o', color='#00C853', markersize=5)
+            # Initial state: session started, 0 reminders at t=0
+            self.ax.plot([0], [0], color='#00C853', linewidth=2) # Clean line
             self.ax.set_title('Live Reminders This Session')
             self.ax.set_xlabel('Time Elapsed (seconds)')
             self.ax.set_ylabel('Cumulative Reminders')
-            self.ax.set_ylim(bottom=0, top=10) # Keep Y limit 0-10
-            self.ax.set_xlim(left=0, right=60) # Keep X limit 0-60 for this case
-            self.ax.set_yticks(range(0, 11, 2)) # Keep Y ticks for 0-10 range
-            self.ax.set_xticks([0, 30, 60]) # Keep X ticks for this case
+            self.ax.set_ylim(bottom=-0.5, top=1.5) 
+            self.ax.set_xlim(left=0, right=60) 
+            self.ax.set_yticks([0]) # Only show 0 at the start
+            self.ax.set_xticks([0, 30, 60]) 
             self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
             self.ax.text(0.5, 0.6, 'Session active. Monitoring...', ha='center', va='center', fontsize=10, color='#F0F0F5', transform=self.ax.transAxes)
         else:
+            # Fallback / Waiting for first reminder
             self.ax.set_title('Live Reminders This Session') 
             self.ax.text(0.5, 0.5, 'Session started. Waiting for first reminder...', ha='center', va='center', fontsize=10, color='#F0F0F5', transform=self.ax.transAxes)
             self.ax.set_xlabel('Time Elapsed (seconds)')
             self.ax.set_ylabel('Cumulative Reminders')
             self.ax.set_xticks([0, 30, 60])
-            self.ax.set_yticks(range(0, 11, 2)) # Keep Y ticks for 0-10 range
-            self.ax.set_xlim(left=0, right=60) # Keep X limit 0-60 for this case
-            self.ax.set_ylim(bottom=0, top=10) # Keep Y limit 0-10
+            self.ax.set_yticks([0, 2, 4, 6, 8, 10]) # Keep default ticks for this empty state for now
+            self.ax.set_xlim(left=0, right=60) 
+            self.ax.set_ylim(bottom=-0.5, top=10.5) 
             self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
+
         self.fig.patch.set_facecolor('#2D2D3F')
         self.ax.set_facecolor('#3C3C50')
         self.ax.spines['bottom'].set_color('#F0F0F5')
