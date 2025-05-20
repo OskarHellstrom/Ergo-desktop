@@ -2,32 +2,32 @@
 
 /* General Widget Styling */
 QWidget {
-    background-color: #1A1A2E; /* Default: deepCharcoal */
-    color: #F0F0F5;          /* Default: offWhite */
+    background-color: #414b53; /* Primary */
+    color: #d4d3c8;          /* Accent */
     font-family: "Inter", "Segoe UI", Arial, sans-serif; /* Modern sans-serif font stack */
     font-size: 11pt; /* Base font size increased */
 }
 
 QMainWindow, QDialog {
-    background-color: #1A1A2E; /* deepCharcoal */
+    background-color: #414b53; /* Primary */
 }
 
 /* Content Containers and Cards */
 QFrame#ContentContainer, QTabWidget::pane {
-    background-color: #2D2D3F; /* mediumDarkGray */
+    background-color: #414b53; /* Primary (slightly lighter variant or Primary itself if distinct shades aren't needed) */
     border: none;
 }
 
 QGroupBox, QFrame.Card {
-    background-color: #3C3C50; /* lightDarkGray */
-    border: 1px solid #4A4A60; /* Slightly lighter for definition */
+    background-color: #919da0; /* Secondary */
+    border: 1px solid #414b53; /* Primary */
     border-radius: 8px;
     margin-top: 10px; /* For QGroupBox title spacing */
     padding: 10px;
 }
 
 QGroupBox::title {
-    color: #F0F0F5;
+    color: #d4d3c8; /* Accent */
     subcontrol-origin: margin;
     subcontrol-position: top left;
     padding: 0px 10px 5px 10px; /* top, right, bottom, left */
@@ -37,7 +37,7 @@ QGroupBox::title {
 
 /* Text Hierarchy */
 QLabel#H1Title {
-    color: #E0DFFF; /* highlightWhiteLilac */
+    color: #d4d3c8; /* Accent */
     font-size: 22pt; /* Adjusted for new base */
     font-weight: bold;
     padding-bottom: 12px; /* Space below H1 */
@@ -45,40 +45,40 @@ QLabel#H1Title {
 }
 
 QLabel#H2Title, QLabel.SectionTitle {
-    color: #F0F0F5; /* offWhite */
+    color: #d4d3c8; /* Accent */
     font-size: 15pt; /* Adjusted for new base */
     font-weight: 600; /* semi-bold */
     padding-top: 8px;
     padding-bottom: 8px;
-    border-bottom: 1px solid #3C3C50; /* Subtle separator for section titles */
+    border-bottom: 1px solid #919da0; /* Secondary */
     margin-top: 10px; /* Added margin */
     margin-bottom: 5px; /* Added margin */
 }
 
 QLabel.BodyPrimary {
-    color: #F0F0F5; /* offWhite */
+    color: #d4d3c8; /* Accent */
     font-size: 11pt; /* Aligned with base */
 }
 
 QLabel.BodySecondary, QLabel.Caption {
-    color: #B0B0C0; /* lightGray */
+    color: #b0b0b5; /* Lighter shade of Secondary or slightly darker Accent */
     font-size: 10pt;  /* Adjusted relative to new base */
 }
 
 /* Styling for QLabel used as a link */
 QLabel a {
-    color: #8AAEFF; /* A lighter, friendly blue for links */
+    color: #a7b8c0; /* A muted blue, or a lighter shade of Secondary */
     text-decoration: none; /* Remove underline by default */
 }
 
 QLabel a:hover {
-    color: #A8C5FF; /* Brighter on hover */
+    color: #d4d3c8; /* Accent on hover */
     text-decoration: underline; /* Underline on hover for affordance */
 }
 
 /* Error Text Styling */
 .ErrorText, QLabel#ErrorLabel {
-    color: #FF6B6B; /* A clear but not overly harsh red */
+    color: #FF8080; /* A slightly less harsh red, ensure it's visible on Primary bg */
     font-size: 9.5pt;
     font-weight: 500;
     /* Add padding or margin if needed, or handle in layout */
@@ -87,90 +87,100 @@ QLabel a:hover {
 
 /* Buttons */
 QPushButton {
-    background-color: #3C3C50; /* lightDarkGray */
-    color: #F0F0F5; /* offWhite */
-    border: 1px solid #4A4A60; /* Subtle border for default buttons */
+    background-color: #919da0; /* Secondary */
+    color: #414b53; /* Primary (for text, to contrast with Secondary bg) */
+    border: 1px solid #7a8487; /* Darker shade of Secondary */
     padding: 9px 18px; /* Increased padding */
     border-radius: 8px; /* Slightly more rounded */
     min-height: 2.3em; /* Increased min-height for better touch */
     font-weight: 500; /* Medium weight */
-    /* Basic transition placeholder - actual transitions are hard in QSS */
-    /* transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out; */
 }
 
 QPushButton:hover {
-    background-color: #45455A; /* Slightly lighter gray for hover */
-    border-color: #55556F; /* Darker border on hover */
+    background-color: #a1a9ac; /* Lighter Secondary */
+    border-color: #7a8487; 
 }
 
 QPushButton:pressed {
-    background-color: #353548; /* Darker for press */
-    border-color: #4A4A60;
+    background-color: #818c8f; /* Darker Secondary */
+    border-color: #7a8487;
 }
 
 QPushButton:disabled {
-    background-color: #2D2D3F;
-    color: #6c6c7a;
-    border-color: #3C3C50; /* Darker border for disabled */
+    background-color: #586168; /* Lighter Primary / Darker Secondary */
+    color: #a1a9ac; /* Muted Accent / Lighter Secondary */
+    border-color: #586168;
 }
 
 QPushButton#PrimaryCTA {
-    background-color: #7B61FF; /* purple */
-    color: #FFFFFF; /* Brighter white for better contrast on purple */
-    border: none;
-    font-weight: 600; /* Bold for primary action */
-    padding: 10px 20px; /* Slightly more padding for primary */
+    background-color: #919da0; /* Secondary */
+    color: #414b53;           /* Primary (for text, high contrast) */
+    border: 1px solid #7a8487; /* Darker Secondary for border */
+    font-weight: 600;
+    padding: 10px 20px;
 }
 
 QPushButton#PrimaryCTA:hover {
-    background-color: #6A50DD; /* Darker purple */
+    background-color: #a1a9ac; /* Lighter Secondary */
+    border-color: #7a8487;
 }
 
 QPushButton#PrimaryCTA:pressed {
-    background-color: #5840C0; /* Even darker purple */
+    background-color: #818c8f; /* Darker Secondary */
 }
 
 QPushButton#PrimaryCTA:disabled {
-    background-color: #4A3B99; /* Desaturated purple */
-    color: #988DE0; /* Lighter text for disabled primary */
-    border: none;
+    background-color: #586168; /* Lighter Primary / Darker Secondary */
+    color: #a1a9ac; /* Muted text */
+    border: 1px solid #586168;
 }
 
 /* Secondary Button Style (Example, use with objectName or dynamic property) */
 QPushButton.Secondary {
     background-color: transparent;
-    color: #AEAEB5; /* Lighter text */
-    border: 1px solid #4A4A60;
+    color: #d4d3c8; /* Accent */
+    border: 1px solid #919da0; /* Secondary */
 }
 QPushButton.Secondary:hover {
-    background-color: #353548; /* Subtle background on hover */
-    color: #F0F0F5;
-    border-color: #55556F;
+    background-color: #586168; /* Lighter Primary */
+    color: #d4d3c8; /* Accent */
+    border-color: #a1a9ac; /* Lighter Secondary */
 }
 QPushButton.Secondary:pressed {
-    background-color: #2D2D3F;
+    background-color: #414b53; /* Primary */
 }
 
 /* Input Fields */
 QLineEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {
-    background-color: #2D2D3F; /* mediumDarkGray */
-    color: #F0F0F5; /* offWhite */
-    border: 1px solid #3C3C50; /* lightDarkGray */
-    border-radius: 8px; /* Match button roundness */
-    padding: 10px; /* Increased padding for a modern feel */
-    font-size: 10pt; /* Slightly smaller for input fields or keep 11pt for consistency */
-    min-height: 2.3em; /* Match button height for visual rhythm */
+    background-color: #414b53; /* Primary */
+    color: #d4d3c8; /* Accent */
+    border: 1px solid #919da0; /* Secondary */
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 10pt; 
+    min-height: 2.3em;
+    selection-background-color: #919da0; /* Secondary for selection background */
+    selection-color: #414b53;           /* Primary for selected text */
+}
+
+/* Placeholder text color for QLineEdit */
+QLineEdit::placeholder {
+    color: #a0a0a0; /* Subdued Accent/Secondary mix */
 }
 
 QLineEdit:focus, QTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
-    border: 1px solid #7B61FF; /* purple accent */
-    background-color: #353548; /* Slightly lighter on focus */
-    /* box-shadow: 0 0 0 2px rgba(123, 97, 255, 0.3); */ /* Ideal, but box-shadow not in QSS */
+    border: 1px solid #d4d3c8; /* Accent for focus border */
+    background-color: #414b53; /* Primary */
+}
+
+QLineEdit:disabled, QTextEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled, QComboBox:disabled {
+    background-color: #586168; /* Slightly lighter Primary or darker Secondary */
+    color: #7a8487;          /* Muted Accent/Secondary */
+    border-color: #586168;
 }
 
 QTextEdit {
-    selection-background-color: #7B61FF; /* purple */
-    selection-color: #F0F0F5; /* offWhite */
+    /* selection-background-color and selection-color moved to the general input style above */
 }
 
 QComboBox::drop-down {
@@ -181,32 +191,55 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    /* Consider using an SVG icon here for better scaling and styling */
-    /* image: url(:/icons/dropdown-arrow-offwhite.svg); */
-    /* For now, a simple character, replace with SVG for production */
-     border: 1px solid #7B61FF;
+     border: 1px solid #d4d3c8; /* Accent */
      border-radius: 3px;
-
 }
-QComboBox::down-arrow:on { /* shift the arrow when popup is open */
+QComboBox::down-arrow:on {
     top: 1px;
     left: 1px;
+}
+
+/* Styling for the QComboBox dropdown list view */
+QComboBox QAbstractItemView {
+    background-color: #414b53; /* Primary */
+    color: #d4d3c8; /* Accent */
+    border: 1px solid #919da0; /* Secondary */
+    selection-background-color: #919da0; /* Secondary for selection in dropdown */
+    selection-color: #414b53;    /* Primary for selected text in dropdown */
+    padding: 5px;
+    outline: 0px; /* Remove focus outline from the view itself if not desired */
+}
+
+/* Style for individual items in QComboBox dropdown */
+QComboBox QAbstractItemView::item {
+    padding: 5px;
+    min-height: 2em; /* Ensure items are adequately sized */
+}
+
+QComboBox QAbstractItemView::item:selected {
+    background-color: #919da0; /* Secondary */
+    color: #414b53; /* Primary */
+}
+
+QComboBox QAbstractItemView::item:hover {
+    background-color: #586168; /* Lighter primary, or a variant of secondary */
+    color: #d4d3c8; /* Accent */
 }
 
 /* ScrollBars */
 QScrollBar:vertical {
     border: none;
-    background: #2D2D3F; /* mediumDarkGray */
-    width: 12px; /* Slightly wider */
+    background: #414b53; /* Primary */
+    width: 12px;
     margin: 0px 0px 0px 0px;
 }
 QScrollBar::handle:vertical {
-    background: #7B61FF; /* purple */
-    min-height: 30px; /* Slightly taller handle */
+    background: #d4d3c8; /* Accent */
+    min-height: 30px;
     border-radius: 6px;
 }
 QScrollBar::handle:vertical:hover {
-    background: #937FFF; /* Lighter purple */
+    background: #b0b0b5; /* Lighter shade of Secondary or darker Accent */
 }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
     border: none;
@@ -219,17 +252,17 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 
 QScrollBar:horizontal {
     border: none;
-    background: #2D2D3F; /* mediumDarkGray */
+    background: #414b53; /* Primary */
     height: 12px;
     margin: 0px 0px 0px 0px;
 }
 QScrollBar::handle:horizontal {
-    background: #7B61FF; /* purple */
-    min-width: 30px; /* Slightly wider handle */
+    background: #d4d3c8; /* Accent */
+    min-width: 30px;
     border-radius: 6px;
 }
 QScrollBar::handle:horizontal:hover {
-    background: #937FFF; /* Lighter purple */
+    background: #b0b0b5; /* Lighter shade of Secondary or darker Accent */
 }
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     border: none;
@@ -243,56 +276,67 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 
 /* Tooltips */
 QToolTip {
-    background-color: #222235; /* Slightly darker than main bg for contrast */
-    color: #F0F0F5;           /* offWhite */
-    border: 1px solid #7B61FF; /* purple accent */
-    padding: 8px 12px; /* More horizontal padding */
-    border-radius: 6px; /* Consistent roundness */
-    font-size: 9.5pt; /* Clearer tooltip text */
+    background-color: #30363b; /* Darker shade of Primary for tooltip background */
+    color: #d4d3c8;           /* Accent */
+    border: 1px solid #919da0; /* Secondary */
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 9.5pt;
     opacity: 240; /* Slight transparency */
 }
 
 /* Tab Widget Styling */
 QTabWidget::pane {
-    border-top: 2px solid #7B61FF; /* purple line indicating active pane area */
-    background-color: #2D2D3F; /* mediumDarkGray */
+    border-top: 1px solid #919da0; /* Secondary */
+    margin-top: -1px; /* Align pane border with tab bar bottom border */
+    background-color: #414b53; /* Primary */
 }
 
 QTabBar::tab {
-    background: #3C3C50; /* lightDarkGray */
-    color: #B0B0C0;      /* lightGray */
-    border: 1px solid #4A4A60;
-    border-bottom: none; /* continuité with pane */
-    border-top-left-radius: 8px; /* Match other roundness */
-    border-top-right-radius: 8px; /* Match other roundness */
-    padding: 12px 22px; /* Increased padding */
-    margin-right: 2px; /* space between tabs */
-    font-weight: 500;
-}
-
-QTabBar::tab:selected, QTabBar::tab:hover {
-    background: #2D2D3F; /* mediumDarkGray, same as pane */
-    color: #F0F0F5;      /* offWhite */
+    background-color: #586168; /* Lighter shade of Primary or Secondary */
+    color: #d4d3c8; /* Accent */
+    border: 1px solid #919da0; /* Secondary */
+    border-bottom: none; /* Usually, selected tab connects to pane */
+    padding: 8px 16px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    margin-right: 2px; /* Spacing between tabs */
+    min-width: 80px;
 }
 
 QTabBar::tab:selected {
-    border-color: #7B61FF; /* purple border for selected tab */
-    border-bottom-color: #2D2D3F; /* Make bottom border match pane bg */
+    background-color: #414b53; /* Primary (same as pane) */
+    color: #d4d3c8; /* Accent */
+    border: 1px solid #919da0; /* Secondary */
+    border-bottom: 1px solid #414b53; /* Primary (to make it blend with pane) */
+    /* font-weight: bold; */ /* Optional: make selected tab text bold */
+}
+
+QTabBar::tab:!selected {
+    background-color: #586168; /* Lighter Primary or Secondary */
+    color: #b0b0b5; /* Lighter Secondary or Darker Accent */
+    border: 1px solid #919da0; /* Secondary */
+    border-bottom: 1px solid #919da0; /* Secondary */
+}
+
+QTabBar::tab:!selected:hover {
+    background-color: #656e75; /* Slightly lighter for hover */
+    color: #d4d3c8; /* Accent */
 }
 
 /* CheckBox and RadioButton */
 QCheckBox, QRadioButton {
     spacing: 8px; /* Space between indicator and text */
-    color: #F0F0F5;
+    color: #d4d3c8; /* Accent */
     background: transparent;
 }
 
 QCheckBox::indicator, QRadioButton::indicator {
     width: 20px; /* Increased size */
     height: 20px; /* Increased size */
-    border: 2px solid #7B61FF; /* purple */
+    border: 2px solid #919da0; /* Secondary */
     border-radius: 6px; /* More rounded */
-    background-color: #2D2D3F; /* mediumDarkGray */
+    background-color: #414b53; /* Primary */
 }
 
 QCheckBox::indicator:checked {
@@ -302,8 +346,8 @@ QCheckBox::indicator:checked {
     border: 3px solid #00C853; /* green */
 }
 QCheckBox::indicator:disabled, QRadioButton::indicator:disabled {
-    border-color: #4A4A60;
-    background-color: #3C3C50;
+    border-color: #586168;
+    background-color: #414b53; /* Primary */
 }
 
 
@@ -312,7 +356,7 @@ QRadioButton::indicator {
 }
 
 QRadioButton::indicator:checked {
-    background-color: #7B61FF; /* Fill with accent color */
+    background-color: #919da0; /* Secondary for checked state fill */
     image: url(''); /* Remove default image if any, rely on background */
 }
 QRadioButton::indicator:checked::after { /* Custom checkmark (difficult in QSS without SVG) */
@@ -327,13 +371,13 @@ QRadioButton::indicator:checked::after { /* Custom checkmark (difficult in QSS w
 
 /* Message Box Styling (Informational/Error popups) */
 QMessageBox {
-    background-color: #2D2D3F; /* Consistent with content panes */
-    border: 1px solid #4A4A60; /* Subtle border */
+    background-color: #919da0; /* Secondary (to match cards/groupboxes) */
+    border: 1px solid #414b53; /* Primary */
     border-radius: 8px; /* Consistent rounding */
 }
 
 QMessageBox QLabel {
-    color: #F0F0F5;
+    color: #414b53; /* Primary text on Secondary background */
     font-size: 11pt; /* Match base app font */
     padding: 10px; /* Add some padding around the text */
 }
@@ -357,20 +401,20 @@ QMessageBoxStandardIcon#qt_msgboxcritical_icon {
 
 /* Item Views (Lists, Tables, Trees) */
 QListView, QTreeView, QTableView {
-    background-color: #2D2D3F; /* mediumDarkGray */
-    color: #F0F0F5;
-    border: 1px solid #3C3C50; /* lightDarkGray */
+    background-color: #414b53; /* Primary */
+    color: #d4d3c8; /* Accent */
+    border: 1px solid #919da0; /* Secondary */
     border-radius: 6px;
-    alternate-background-color: #353548; /* Slightly different for alternating rows */
-    selection-background-color: #7B61FF; /* purple */
-    selection-color: #F0F0F5;
+    alternate-background-color: #4a545b; /* Slightly lighter Primary */
+    selection-background-color: #919da0; /* Secondary */
+    selection-color: #414b53; /* Primary text */
 }
 
 QHeaderView::section {
-    background-color: #3C3C50; /* lightDarkGray */
-    color: #F0F0F5;
+    background-color: #919da0; /* Secondary */
+    color: #414b53; /* Primary text */
     padding: 6px;
-    border: 1px solid #2D2D3F; /* mediumDarkGray to separate headers */
+    border: 1px solid #414b53; /* Primary */
     font-weight: bold;
 }
 
@@ -390,10 +434,10 @@ QFrame.FeaturedIconContainer {
 QFrame.IdeaType {
     /* Gradient is hard with QSS background. Consider SVG or custom paint. */
     /* Fallback solid color or one end of the gradient: */
-    background-color: #5C95FF; /* softBlue, part of gradientBluePurple */
+    background-color: #5C95FF; /* softBlue, part of gradientBluePurple - RETAINING THIS FOR NOW, as it might be intentional for specific idea type */
 }
 QFrame.SystemType {
-    background-color: #7B61FF; /* purple */
+    background-color: #919da0; /* Secondary */
 }
 QFrame.SuccessType {
     background-color: #00C853; /* green */
@@ -406,9 +450,9 @@ QLabel.IconGlyph { /* Assuming icon glyphs inside featured containers are QLabel
 
 /* Custom Notification Toast Styling */
 QWidget#NotificationToastContainer {
-    background-color: #28283A; /* Slightly different from main bg for pop */
+    background-color: rgba(145, 157, 160, 0.9); /* Secondary with Alpha */
     border-radius: 10px; /* More prominent rounding */
-    border: 1px solid #7B61FF; /* Accent border */
+    border: 1px solid #d4d3c8; /* Accent border */
     /* Shadow is applied via QGraphicsDropShadowEffect in Python */
 }
 
@@ -421,52 +465,52 @@ QLabel#NotificationToastMessage {
 
 /* Slider Styles */
 QSlider::groove:horizontal {
-    border: 1px solid #3C3C50;
+    border: 1px solid #919da0; /* Secondary */
     height: 8px; /* groove height */
-    background: #2D2D3F;
+    background: #414b53; /* Primary */
     margin: 2px 0;
     border-radius: 4px;
 }
 
 QSlider::handle:horizontal {
-    background: #7B61FF; /* purple */
-    border: 1px solid #7B61FF;
+    background: #d4d3c8; /* Accent */
+    border: 1px solid #d4d3c8; /* Accent */
     width: 18px; /* handle width */
     height: 18px; /* handle height, make it slightly larger than groove */
     margin: -5px 0; /* align handle vertically */
     border-radius: 9px; /* circular handle */
 }
 QSlider::handle:horizontal:hover {
-    background: #937FFF;
-    border: 1px solid #937FFF;
+    background: #c0bfb5; /* Darker Accent */
+    border: 1px solid #c0bfb5; /* Darker Accent */
 }
 
 QSlider::groove:vertical {
-    border: 1px solid #3C3C50;
+    border: 1px solid #919da0; /* Secondary */
     width: 8px;
-    background: #2D2D3F;
+    background: #414b53; /* Primary */
     margin: 0 2px;
     border-radius: 4px;
 }
 
 QSlider::handle:vertical {
-    background: #7B61FF;
-    border: 1px solid #7B61FF;
+    background: #d4d3c8; /* Accent */
+    border: 1px solid #d4d3c8; /* Accent */
     height: 18px;
     width: 18px;
     margin: 0 -5px;
     border-radius: 9px;
 }
 QSlider::handle:vertical:hover {
-    background: #937FFF;
-    border: 1px solid #937FFF;
+    background: #c0bfb5; /* Darker Accent */
+    border: 1px solid #c0bfb5; /* Darker Accent */
 }
 
 /* Specific class styling for webcam label placeholder */
 QLabel#WebcamFeedLabel {
-    background-color: #252535; /* Slightly different dark shade for the feed area */
-    color: #808090; /* Placeholder text color */
-    border: 1px dashed #4A4A60; /* Dashed border to indicate it's a placeholder/feed area */
+    background-color: #30363b; /* Darker Primary (like a placeholder) */
+    color: #919da0; /* Secondary for placeholder text */
+    border: 1px dashed #919da0; /* Secondary */
     border-radius: 8px;
 }
 
@@ -487,7 +531,7 @@ QWidget#DashboardMainContent {
 QFrame#CameraViewFrame {
     background-color: black; /* Typically camera feed has black background */
     border-radius: 8px;
-    border: 1px solid #3C3C50;
+    border: 1px solid #919da0; /* Secondary */
 }
 
 QLabel#StatusIndicatorLabel {
@@ -504,16 +548,16 @@ QLabel#StatusIndicatorLabel {
 
 /* Style for the QFrame that might hold stats or graphs */
 QFrame#StatsDisplayFrame {
-    background-color: #303042; /* A slightly distinct background for stats modules */
+    background-color: #919da0; /* Secondary (to match cards) */
     border-radius: 8px;
     padding: 10px;
 }
 
 /* Update Notification Label Style */
 QLabel#UpdateNotificationLabel {
-    background-color: #3E4A6B; /* A calm blue/grey for info */
-    color: #E0EFFF; /* Light text for contrast */
-    border: 1px solid #506080;
+    background-color: #586168; /* Retaining a distinct shade for this bar for now, or could be Secondary */
+    color: #d4d3c8; /* Accent Text */
+    border: 1px solid #919da0; /* Secondary */
     border-radius: 6px;
     padding: 10px 15px;
     font-size: 10pt;
@@ -530,9 +574,9 @@ QLabel#UpdateNotificationLabel a:hover {
 
 /* Status Alert Label (for errors, warnings like webcam issues) */
 QLabel#StatusAlertLabel {
-    background-color: #6B3E3E; /* A muted red for alerts */
-    color: #FFDADA; /* Light reddish text */
-    border: 1px solid #805050;
+    background-color: #A52A2A; /* A more muted but distinct error red - or use a Secondary bg with Accent error text */
+    color: #d4d3c8; /* Accent Text */
+    border: 1px solid #d4d3c8; /* Accent Border */
     border-radius: 6px;
     padding: 10px 15px;
     font-size: 10pt;
@@ -542,75 +586,17 @@ QLabel#StatusAlertLabel {
 
 /* QGroupBox section titles for SettingsDialog */
 QGroupBox {
-    border: 1px solid #3C3C50;
-    border-radius: 8px;
-    margin-top: 18px;
-    margin-bottom: 18px;
-    padding: 12px 16px 16px 16px;
-    background-color: #23233A;
-}
-QGroupBox::title {
-    subcontrol-origin: margin;
-    subcontrol-position: top left;
-    color: #E0DFFF;
-    font-size: 13.5pt;
-    font-weight: 600;
-    padding: 0 0 8px 0;
-    margin-left: 2px;
-}
-
-QScrollArea {
-    background: transparent;
-    border: none;
-}
-
-QLabel, QRadioButton, QCheckBox, QComboBox, QTextEdit, QLineEdit {
-    font-size: 11pt;
-    color: #F0F0F5;
-}
-
-QTextEdit, QLineEdit {
-    background-color: #23233A;
-    border: 1px solid #3C3C50;
-    border-radius: 5px;
-    padding: 6px;
-}
-
-QComboBox {
-    background-color: #23233A;
-    border: 1px solid #3C3C50;
-    border-radius: 5px;
-    padding: 4px 8px;
-}
-
-QDialogButtonBox {
-    margin-top: 18px;
-}
-
-/* Section Description labels for SettingsDialog */
-QLabel#SectionDescription {
-    color: #B0B0C0;
-    font-size: 10.5pt;
-    font-weight: 400;
-    margin-bottom: 10px;
-    margin-top: 2px;
-    letter-spacing: 0.5px;
-    qproperty-alignment: 'AlignHCenter';
-}
-
-/* QGroupBox section titles for SettingsDialog */
-QGroupBox {
-    border: 1px solid #3C3C50;
+    border: 1px solid #414b53; /* Primary border */
     border-radius: 12px;
     margin-top: 28px;
     margin-bottom: 28px;
     padding: 22px 24px 24px 24px;
-    background-color: #23233A;
+    background-color: #919da0; /* Secondary */
 }
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    color: #E0DFFF;
+    color: #414b53; /* Primary text on Secondary bg */
     font-size: 16pt;
     font-weight: 700;
     letter-spacing: 1.2px;
@@ -630,8 +616,8 @@ QLabel, QRadioButton, QCheckBox, QComboBox, QTextEdit, QLineEdit {
 }
 
 QTextEdit, QLineEdit {
-    background-color: #23233A;
-    border: 1px solid #3C3C50;
+    background-color: #414b53; /* Primary */
+    border: 1px solid #919da0; /* Secondary */
     border-radius: 8px;
     padding: 10px 14px;
     min-width: 180px;
@@ -639,8 +625,8 @@ QTextEdit, QLineEdit {
 }
 
 QComboBox {
-    background-color: #23233A;
-    border: 1px solid #3C3C50;
+    background-color: #414b53; /* Primary */
+    border: 1px solid #919da0; /* Secondary */
     border-radius: 8px;
     padding: 8px 14px;
     min-width: 180px;
@@ -660,30 +646,46 @@ QDialogButtonBox QPushButton {
     margin: 0 10px;
 }
 QPushButton#PrimaryCTA, QDialogButtonBox QPushButton:default {
-    background-color: #7B61FF;
-    color: #FFFFFF;
-    border: none;
+    background-color: #d4d3c8; /* Accent */
+    color: #414b53;           /* Primary */
+    border: 1px solid #414b53;/* Primary border, or none if preferred */
     font-weight: 700;
 }
 QPushButton#PrimaryCTA:hover, QDialogButtonBox QPushButton:default:hover {
-    background-color: #6A50DD;
+    background-color: #c0bfb5; /* Darker Accent */
+    color: #414b53; /* Primary */
+    border-color: #30363b; /* Darker Primary border */
 }
 QPushButton#PrimaryCTA:pressed, QDialogButtonBox QPushButton:default:pressed {
-    background-color: #5840C0;
+    background-color: #acaba2; /* Even Darker Accent */
+    color: #414b53; /* Primary */
+    border-color: #30363b; /* Darker Primary border */
 }
 QPushButton.Secondary, QDialogButtonBox QPushButton {
-    background-color: #353548;
-    color: #AEAEB5;
-    border: 1px solid #4A4A60;
+    background-color: #414b53; /* Primary */
+    color: #d4d3c8;          /* Accent */
+    border: 1px solid #919da0; /* Secondary */
     font-weight: 500;
 }
 QPushButton.Secondary:hover, QDialogButtonBox QPushButton:hover {
-    background-color: #45455A;
-    color: #F0F0F5;
-    border-color: #55556F;
+    background-color: #586168; /* Lighter Primary */
+    color: #d4d3c8;           /* Accent */
+    border-color: #d4d3c8;     /* Accent border on hover */
 }
 QPushButton.Secondary:pressed, QDialogButtonBox QPushButton:pressed {
-    background-color: #2D2D3F;
+    background-color: #30363b; /* Darker Primary */
+    color: #d4d3c8;           /* Accent */
+    border-color: #d4d3c8;     /* Accent border */
+}
+QPushButton.Secondary:disabled, QDialogButtonBox QPushButton:disabled {
+    background-color: #30363b; /* Darker Primary */
+    color: #7a8487; /* Darker Secondary */
+    border: 1px solid #586168; /* Lighter Primary */
+}
+QPushButton:disabled {
+    background-color: #30363b !important; /* Darker Primary - use !important if needed to override */
+    color: #7a8487 !important;          /* Darker/Muted Secondary - use !important if needed */
+    border: 1px solid #586168 !important; /* Lighter Primary border - use !important if needed */
 }
 
 /* Standardize button and input sizes, padding, and font */
@@ -698,20 +700,20 @@ QPushButton, QLineEdit, QTextEdit, QComboBox {
 
 /* Lighten secondary and disabled button backgrounds for clarity */
 QPushButton.Secondary, QDialogButtonBox QPushButton {
-    background-color: #39395A;
-    color: #AEAEB5;
-    border: 1px solid #4A4A60;
+    background-color: #414b53; /* Primary */
+    color: #d4d3c8;          /* Accent */
+    border: 1px solid #919da0; /* Secondary */
     font-weight: 500;
 }
 QPushButton.Secondary:disabled, QDialogButtonBox QPushButton:disabled {
-    background-color: #2D2D3F;
-    color: #88889A;
-    border: 1px solid #3C3C50;
+    background-color: #30363b; /* Darker Primary */
+    color: #7a8487; /* Darker Secondary */
+    border: 1px solid #586168; /* Lighter Primary */
 }
 QPushButton:disabled {
-    background-color: #2D2D3F;
-    color: #88889A;
-    border: 1px solid #3C3C50;
+    background-color: #30363b !important; /* Darker Primary - use !important if needed to override */
+    color: #7a8487 !important;          /* Darker/Muted Secondary - use !important if needed */
+    border: 1px solid #586168 !important; /* Lighter Primary border - use !important if needed */
 }
 
 /* Improve hover/active feedback for all buttons */
@@ -727,20 +729,20 @@ QPushButton:pressed, QDialogButtonBox QPushButton:pressed {
 
 /* Inputs: lighter background, clear focus */
 QLineEdit, QTextEdit, QComboBox {
-    background-color: #23233A;
-    border: 1.5px solid #3C3C50;
-    color: #F0F0F5;
+    background-color: #414b53; /* Primary */
+    border: 1.5px solid #919da0; /* Secondary */
+    color: #d4d3c8; /* Accent */
     font-size: 11pt;
     border-radius: 8px;
     padding: 10px 14px;
 }
 QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
-    border: 1.5px solid #7B61FF;
-    background-color: #28284A;
+    border: 1.5px solid #d4d3c8; /* Accent */
+    background-color: #414b53; /* Primary (no bg change on focus, border indicates) */
 }
 QLineEdit:disabled, QTextEdit:disabled, QComboBox:disabled {
-    background-color: #2D2D3F;
-    color: #88889A;
+    background-color: #30363b; /* Darker Primary */
+    color: #7a8487; /* Darker Secondary */
 }
 
 /* Ensure all QLabel text wraps and is centered by default */
@@ -769,4 +771,16 @@ QToolTip {
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 10pt;
+}
+
+QProgressBar {
+    border: 1px solid #919da0; /* Secondary */
+    border-radius: 5px;
+    text-align: center;
+    color: #d4d3c8; /* Accent - for percentage text */
+    background-color: #414b53; /* Primary - for the trough */
+}
+
+QProgressBar::chunk {
+    background-color: #919da0; /* Secondary - for the progress fill */
 }

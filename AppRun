@@ -1,21 +1,36 @@
 #!/bin/sh
 HERE=$(dirname "$(readlink -f "$0")")
 
-export LD_LIBRARY_PATH="$HERE/lib:$LD_LIBRARY_PATH"
-export QT_PLUGIN_PATH="$HERE/plugins:$HERE/PyQt6/Qt6/plugins:$QT_PLUGIN_PATH"
-export QML2_IMPORT_PATH="$HERE/PyQt6/Qt6/qml:$QML2_IMPORT_PATH"
+# Set up library and plugin paths
+# Explicitly add the directory containing PyInstaller's bundled Python library
+export LD_LIBRARY_PATH="$HERE/usr/bin/_internal:$HERE/usr/lib:$HERE/usr/bin:$LD_LIBRARY_PATH"
 
-# Debug: List files in key Qt plugin directories if they exist
-if [ -d "$HERE/PyQt6/Qt6/plugins/platforms" ]; then
-  echo "AppRun: Contents of $HERE/PyQt6/Qt6/plugins/platforms:"
-  ls -la "$HERE/PyQt6/Qt6/plugins/platforms"
-fi
-if [ -d "$HERE/plugins/platforms" ]; then
-  echo "AppRun: Contents of $HERE/plugins/platforms:"
-  ls -la "$HERE/plugins/platforms"
-fi
+export QT_PLUGIN_PATH="$HERE/usr/bin/PyQt6/Qt6/plugins:$HERE/usr/bin/plugins:$QT_PLUGIN_PATH"
+export QT_QPA_PLATFORM_PLUGIN_PATH="$HERE/usr/bin/PyQt6/Qt6/plugins/platforms"
+export QML2_IMPORT_PATH="$HERE/usr/bin/PyQt6/Qt6/qml:$QML2_IMPORT_PATH"
 
-# Change to the directory where the executable is, if necessary
-# cd "$HERE"
+# Optional: Add any other environment variable setups needed by your app
+# For example, to help find fonts if they are bundled:
+# export XDG_DATA_DIRS="$HERE/usr/share:$XDG_DATA_DIRS"
+# export FONTCONFIG_PATH="$HERE/usr/etc/fonts"
+# export FONTCONFIG_FILE="fonts.conf" # if you bundle a fonts.conf
 
-exec "$HERE/main" "$@" 
+# Debugging: Echo paths (uncomment if needed)
+# echo "AppRun Debug: HERE is $HERE"
+# echo "AppRun Debug: LD_LIBRARY_PATH is $LD_LIBRARY_PATH"
+# echo "AppRun Debug: QT_PLUGIN_PATH is $QT_PLUGIN_PATH"
+# echo "AppRun Debug: QT_QPA_PLATFORM_PLUGIN_PATH is $QT_QPA_PLATFORM_PLUGIN_PATH"
+# Check if libpython exists at the expected path
+# if [ -f "$HERE/usr/bin/_internal/libpython3.12.so" ]; then
+#   echo "AppRun Debug: libpython3.12.so found at $HERE/usr/bin/_internal/libpython3.12.so"
+# else
+#   echo "AppRun Debug: libpython3.12.so NOT found at $HERE/usr/bin/_internal/libpython3.12.so"
+#   echo "AppRun Debug: Listing $HERE/usr/bin/_internal contents:"
+#   ls -la "$HERE/usr/bin/_internal"
+# fi
+
+# Change to the directory where the executable is located.
+cd "$HERE/usr/bin" || exit 1
+
+# Execute the main application binary.
+exec "./main" "$@" 

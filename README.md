@@ -113,70 +113,117 @@ The bundled application will be located in the `dist/main` directory. This direc
 *   The current build process creates a "one-folder" bundle. The entire `dist/main` directory is needed to run the application.
 *   If you modify resource paths or add new dependencies, you might need to update `main.py` (to use the `resource_path()` utility function for any new resources) and potentially `main.spec` if new data files need to be explicitly included.
 
-### Creating a Linux AppImage
+### Creating a Linux AppImage "From Scratch"
 
-To package the application as a portable AppImage for Linux:
+This section explains how to package the Ergo application into a portable `AppImage` for Linux systems. This process involves first bundling the Python application using PyInstaller, then constructing an `AppDir` (Application Directory), and finally using `appimagetool` to convert the `AppDir` into an AppImage.
 
-1.  **Build with PyInstaller:** First, ensure you have a working PyInstaller build in `dist/main` by running:
+The `appimagetool-x86_64.AppImage` utility is included in the project root. Ensure it is executable:
+```bash
+chmod +x appimagetool-x86_64.AppImage
+```
+
+**Steps to build the AppImage:**
+
+1.  **Ensure PyInstaller Build is Up-to-Date:**
+    The AppImage relies on the output of PyInstaller. Build or update your PyInstaller bundle by running the following from the project root (ensure your virtual environment is active):
     ```bash
     .venv/bin/python -m PyInstaller main.spec --noconfirm
     ```
+    This command uses the `main.spec` file and places the bundled application into the `dist/main/` directory.
 
-2.  **Get `appimagetool`:** Download the `appimagetool` utility (e.g., `appimagetool-x86_64.AppImage`) from [AppImageKit releases](https://github.com/AppImage/AppImageKit/releases) and place it in your project root. Make it executable:
+2.  **Prepare the Application Directory (`AppDir`):**
+    The `AppImage` is built from a specially structured directory, conventionally named `YourAppName.AppDir`.
+    
+    *   **Clean up previous build (optional but recommended):**
+        ```bash
+        rm -rf Ergo.AppDir Ergo-x86_64.AppImage
+        ```
+    *   **Create the `AppDir` structure:**
+        ```bash
+        mkdir -p Ergo.AppDir/usr/bin
+        mkdir -p Ergo.AppDir/usr/lib
+        mkdir -p Ergo.AppDir/usr/share/icons/hicolor/256x256/apps
+        ```
+    *   **Copy PyInstaller output:**
+        Copy all contents from the PyInstaller build directory (`dist/main/`) into `Ergo.AppDir/usr/bin/`:
+        ```bash
+        cp -r dist/main/* Ergo.AppDir/usr/bin/
+        ```
+        *(Note: PyInstaller bundles Python itself, so we place the app contents directly where AppRun expects to find the executable).*
+
+    *   **Add the `AppRun` script:**
+        This script is the entry point for the AppImage. It sets up the environment and executes your application.
+        Copy the existing `AppRun` script from the project root to `Ergo.AppDir/AppRun`.
     ```bash
-    # Example:
-    # wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-    # chmod +x appimagetool-x86_64.AppImage
-    ```
-    *(Ensure you have `appimagetool-x86_64.AppImage` in your project root for the next commands, or adjust paths accordingly).*
+        cp AppRun Ergo.AppDir/
+        chmod +x Ergo.AppDir/AppRun
+        ```
+        Ensure your `AppRun` script (located in the project root) is configured correctly. It is **critical** for the AppImage to function. Key considerations for `AppRun`:
+        *   **Working Directory:** PyInstaller-bundled applications often need to be executed from their own directory. Use `cd "$HERE/usr/bin"` (or equivalent based on your `AppDir` structure) before the `exec` line.
+        *   **Executable Path:** The `exec` command should call the executable relative to the new working directory (e.g., `exec "./main" "$@"`).
+        *   **`LD_LIBRARY_PATH`:** PyInstaller may bundle the Python shared library (e.g., `libpythonX.Y.so`) in a subdirectory like `_internal` relative to the main executable. This path must be explicitly added to `LD_LIBRARY_PATH`. For example: `export LD_LIBRARY_PATH="$HERE/usr/bin/_internal:$HERE/usr/lib:$HERE/usr/bin:$LD_LIBRARY_PATH"` (adjust `_internal` if PyInstaller places it elsewhere).
+        *   Other environment variables like `QT_PLUGIN_PATH` should also be set relative to `$HERE`.
 
-3.  **Prepare `.desktop` and `AppRun` files:**
-    *   Ensure you have an `ergo.desktop` file in your project root with content similar to this:
+        A robust `AppRun` script, reflecting these points, might look like this (the one in the project root should be similar):
+        ```sh
+        #!/bin/sh
+        HERE=$(dirname "$(readlink -f "$0")")
+
+        # Set up library and plugin paths, including PyInstaller's internal lib directory
+        export LD_LIBRARY_PATH="$HERE/usr/bin/_internal:$HERE/usr/lib:$HERE/usr/bin:$LD_LIBRARY_PATH"
+        export QT_PLUGIN_PATH="$HERE/usr/bin/PyQt6/Qt6/plugins:$HERE/usr/bin/plugins:$QT_PLUGIN_PATH"
+        export QT_QPA_PLATFORM_PLUGIN_PATH="$HERE/usr/bin/PyQt6/Qt6/plugins/platforms"
+        export QML2_IMPORT_PATH="$HERE/usr/bin/PyQt6/Qt6/qml:$QML2_IMPORT_PATH"
+        
+        # Change to the directory where the executable is located.
+        # This is crucial for PyInstaller bundles to find their dependencies.
+        cd "$HERE/usr/bin" || exit 1
+        
+        # Execute the main application binary.
+        exec "./main" "$@"
+        ```
+
+    *   **Add the `.desktop` file:**
+        This file provides metadata for desktop integration (name, icon, categories).
+        Copy the `ergo.desktop` file from the project root to `Ergo.AppDir/ergo.desktop`.
+        ```bash
+        cp ergo.desktop Ergo.AppDir/
+        ```
+        Ensure your `ergo.desktop` file is correctly configured. It should look something like:
         ```desktop
         [Desktop Entry]
         Version=1.1
         Name=Ergo
         Comment=Improve your posture with real-time feedback.
-        Exec=main
-        Icon=ergo
+        Exec=main # This should match the executable name inside AppDir/usr/bin/
+        Icon=ergo # This should match the icon filename (without extension)
         Terminal=false
         Type=Application
-        Categories=Utility
+        Categories=Utility;
         ```
-    *   Ensure you have an `AppRun` script in your project root. This script is the entry point for the AppImage. A suitable version:
-        ```sh
-        #!/bin/sh
-        HERE=$(dirname "$(readlink -f "$0")")
-        export LD_LIBRARY_PATH="$HERE/lib:$LD_LIBRARY_PATH"
-        export QT_PLUGIN_PATH="$HERE/plugins:$HERE/PyQt6/Qt6/plugins:$QT_PLUGIN_PATH"
-        export QML2_IMPORT_PATH="$HERE/PyQt6/Qt6/qml:$QML2_IMPORT_PATH"
-        # Optional: Add any other environment variable setups needed by your app
-        exec "$HERE/main" "$@"
-        ```
-        Make sure `AppRun` is executable (`chmod +x AppRun`).
 
-4.  **Create the AppImage:** Run the following commands from your project root. This will create an `Ergo.AppDir` directory, populate it, and then use `appimagetool` to generate `Ergo-x86_64.AppImage`.
+    *   **Add the application icon:**
+        Place your application icon (e.g., `ergo.png`) in `Ergo.AppDir/` (root of AppDir) and also in `Ergo.AppDir/usr/share/icons/hicolor/256x256/apps/`. The `.desktop` file references the icon by its name (e.g., `ergo`).
+        Assuming your icon is `resources/icons/ergo-logo.png`:
+        ```bash
+        cp resources/icons/ergo-logo.png Ergo.AppDir/ergo.png
+        cp resources/icons/ergo-logo.png Ergo.AppDir/usr/share/icons/hicolor/256x256/apps/ergo.png
+        ```
+
+3.  **Generate the AppImage:**
+    Now, use `appimagetool` to convert the `Ergo.AppDir` directory into a single AppImage file. Run this command from the project root:
     ```bash
-    # Clean up previous attempts (optional, but good practice)
-    rm -rf Ergo.AppDir Ergo-x86_64.AppImage 
-
-    # Create and populate AppDir
-    mkdir -p Ergo.AppDir
-    cp -r dist/main/* Ergo.AppDir/
-    cp ergo.desktop Ergo.AppDir/
-    cp resources/icons/ergo-logo.png Ergo.AppDir/ergo.png # Icon referred by .desktop
-    cp AppRun Ergo.AppDir/
-    chmod +x Ergo.AppDir/AppRun
-
-    # Build the AppImage (ensure appimagetool is in the current path or use ./appimagetool-x86_64.AppImage)
     ./appimagetool-x86_64.AppImage Ergo.AppDir
     ```
+    This will create `Ergo-x86_64.AppImage` (or a similar name based on your desktop file and architecture) in your project root directory.
 
-5.  **Run:**
+4.  **Make it Executable and Run:**
     ```bash
     chmod +x Ergo-x86_64.AppImage
     ./Ergo-x86_64.AppImage
     ```
+
+This process gives you a self-contained AppImage that can be distributed and run on various Linux distributions. Remember to test it on a clean environment if possible.
 
 ### Creating a Windows Executable
 

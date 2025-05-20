@@ -30,6 +30,11 @@ import platform
 import time
 from requests.exceptions import ConnectionError
 from utils import resource_path
+from TTS.api import TTS
+import torch
+
+# Set Coqui TTS license agreement environment variable
+os.environ['COQUI_TTS_AGREED'] = '1'
 
 # Global variable to hold the main server instance
 _main_local_server = None
@@ -39,6 +44,7 @@ POSE_MODEL_PATH = "PostureApp/models/pose_landmarker_heavy.task"
 CURRENT_APP_VERSION = "1.0.0"
 UPDATE_INFO_URL = "https://example.com/update-info.json"  # Replace with actual URL
 WEB_APP_BASE_URL = "http://localhost:3000" # Base URL for the web application
+MANAGE_SUBSCRIPTION_URL = "https://localhost:3000/dashboard" # URL for managing subscription
 
 # New Constants for secondary posture checks - These will be removed/modified
 # SHOULDER_VERTICAL_DIFF_RATIO = 0.1  # 10% of inter-shoulder distance for vertical imbalance
@@ -614,6 +620,27 @@ class SettingsDialog(QDialog):
         custom_msg_group.setLayout(custom_msg_layout)
         main_layout.addWidget(custom_msg_group)
 
+        # Voice Selection Section
+        voice_selection_group = QGroupBox("Voice Selection")
+        voice_selection_group.setMinimumWidth(400)
+        voice_selection_group.setGraphicsEffect(make_shadow())
+        voice_selection_layout = QVBoxLayout()
+        voice_selection_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        voice_selection_desc = QLabel("Choose the voice for audio alerts.")
+        voice_selection_desc.setObjectName("SectionDescription")
+        voice_selection_desc.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        voice_selection_desc.setStyleSheet("background: transparent;")
+        voice_selection_layout.addWidget(voice_selection_desc)
+        self.voice_selector_combobox = QComboBox()
+        self.voice_selector_combobox.setMinimumWidth(180)
+        self.voice_selector_combobox.setMaximumWidth(260)
+        self.voice_selector_combobox.setToolTip("Select the voice for TTS alerts.")
+        self.voice_selector_combobox.setGraphicsEffect(make_shadow())
+        # Populate voice selector - this will be done in load_settings or init
+        voice_selection_layout.addWidget(self.voice_selector_combobox, alignment=Qt.AlignmentFlag.AlignHCenter)
+        voice_selection_group.setLayout(voice_selection_layout)
+        main_layout.addWidget(voice_selection_group)
+
         # Webcam Settings
         webcam_group = QGroupBox("Webcam")
         webcam_group.setMinimumWidth(400)
@@ -687,6 +714,7 @@ class SettingsDialog(QDialog):
         webcam_idx_setting = settings.value("webcam_index", 0)
         webcam_idx = int(webcam_idx_setting) if webcam_idx_setting is not None else 0
         show_lm = settings.value("show_landmarks", True, type=bool)
+        selected_voice_file = settings.value("selected_voice_file", "Leif GW.wav") # Default voice
 
         self.sens_combo.setCurrentText(sens)
         if notif == "audio":
@@ -697,6 +725,21 @@ class SettingsDialog(QDialog):
             self.both_radio.setChecked(True)
         self.custom_msg_edit.setPlainText(custom_msg)
         self.show_landmarks_checkbox.setChecked(show_lm)
+        
+        # Populate and set voice selector
+        self.voice_selector_combobox.clear()
+        audio_dir = resource_path("resources/audio")
+        if os.path.exists(audio_dir) and os.path.isdir(audio_dir):
+            wav_files = [f for f in os.listdir(audio_dir) if f.endswith('.wav')]
+            for wav_file in sorted(wav_files):
+                self.voice_selector_combobox.addItem(wav_file)
+        
+        voice_idx = self.voice_selector_combobox.findText(selected_voice_file)
+        if voice_idx != -1:
+            self.voice_selector_combobox.setCurrentIndex(voice_idx)
+        elif self.voice_selector_combobox.count() > 0:
+             self.voice_selector_combobox.setCurrentIndex(0) # Fallback to first if saved not found
+
         idx = self.webcam_selector_combobox.findData(webcam_idx)
         if idx != -1:
             self.webcam_selector_combobox.setCurrentIndex(idx)
@@ -715,161 +758,214 @@ class SettingsDialog(QDialog):
         custom_msg = self.custom_msg_edit.toPlainText()
         webcam_idx = self.webcam_selector_combobox.currentData()
         show_lm_val = self.show_landmarks_checkbox.isChecked()
+        selected_voice_file_val = self.voice_selector_combobox.currentText()
         settings.setValue("sensitivity", sens)
         settings.setValue("notification_mode", notif)
         settings.setValue("custom_alert_message", custom_msg)
         settings.setValue("webcam_index", webcam_idx)
         settings.setValue("show_landmarks", show_lm_val)
+        settings.setValue("selected_voice_file", selected_voice_file_val)
         self.accept()
         if hasattr(self.parent(), "apply_settings"):
             self.parent().apply_settings()
 
     def open_subscription_page(self):
         # This method now directly opens the URL
-        QDesktopServices.openUrl(QUrl("https://app.supabase.com")) # Use your actual subscription page URL
+        QDesktopServices.openUrl(QUrl(MANAGE_SUBSCRIPTION_URL))
 
 class SessionGraphCanvas(FigureCanvas):
     def __init__(self, parent=None):
-        self.fig = Figure(figsize=(5, 2.5)) # Keep figsize, adjust if needed
+        self.fig = Figure(figsize=(7, 5), dpi=100)
+        self.ax = self.fig.add_subplot(111)
         super().__init__(self.fig)
         self.setParent(parent)
-        self.ax = self.fig.add_subplot(111)
-        # self.fig.tight_layout() # Removed, plotting functions will call it
-        self.current_graph_type = None # To track what's being displayed
-        self.plot_historical_data(None) # Initialize with empty historical view
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.updateGeometry()
+        self.current_graph_type = None # To track if live or historical is shown
 
     def plot_historical_data(self, session_data):
         self.ax.clear()
+        # New theme colors
+        primary_color = '#414b53' # Main background
+        card_bg_color = '#586168' # Lighter primary for plot area, similar to cards
+        accent_color = '#d4d3c8'  # Text, ticks, spines
+        secondary_color = '#919da0' # Borders, grid lines
+        data_viz_color = '#88c0d0' # For bar/line plots
+
         if session_data:
             dates = [row[0] for row in session_data]
             counts = [row[1] for row in session_data]
-            self.ax.bar(dates, counts, color='#7B61FF')
+            self.ax.bar(dates, counts, color=data_viz_color) # Use data_viz_color
             self.ax.set_title('Posture Reminders Per Session (Historical)')
             self.ax.set_xlabel('Session Date')
             self.ax.set_ylabel('Total Reminders')
             self.ax.tick_params(axis='x', rotation=45)
-            self.fig.patch.set_facecolor('#2D2D3F')
-            self.ax.set_facecolor('#3C3C50')
-            self.ax.spines['bottom'].set_color('#F0F0F5')
-            self.ax.spines['top'].set_color('#F0F0F5') 
-            self.ax.spines['right'].set_color('#F0F0F5')
-            self.ax.spines['left'].set_color('#F0F0F5')
-            self.ax.tick_params(axis='x', colors='#F0F0F5')
-            self.ax.tick_params(axis='y', colors='#F0F0F5')
-            self.ax.yaxis.label.set_color('#F0F0F5')
-            self.ax.xaxis.label.set_color('#F0F0F5')
-            self.ax.title.set_color('#F0F0F5')
-            self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
+            
+            self.fig.patch.set_facecolor(primary_color)
+            self.ax.set_facecolor(card_bg_color)
+            
+            self.ax.spines['bottom'].set_color(accent_color)
+            self.ax.spines['top'].set_color(accent_color) 
+            self.ax.spines['right'].set_color(accent_color)
+            self.ax.spines['left'].set_color(accent_color)
+            
+            self.ax.tick_params(axis='x', colors=accent_color)
+            self.ax.tick_params(axis='y', colors=accent_color)
+            self.ax.yaxis.label.set_color(accent_color)
+            self.ax.xaxis.label.set_color(accent_color)
+            self.ax.title.set_color(accent_color)
+            self.ax.grid(True, linestyle='--', alpha=0.3, color=secondary_color)
         else:
-            self.ax.set_title('Posture Reminders Per Session (Historical)') # Ensure title is set for empty historical
-            self.ax.text(0.5, 0.5, 'No session data yet.', ha='center', va='center', fontsize=12, color='#F0F0F5', transform=self.ax.transAxes)
+            self.ax.set_title('Posture Reminders Per Session (Historical)')
+            self.ax.text(0.5, 0.5, 'No session data yet.', ha='center', va='center', fontsize=12, color=accent_color, transform=self.ax.transAxes)
             self.ax.set_xlabel('Session Date')
             self.ax.set_ylabel('Total Reminders')
             self.ax.set_xticks([0, 1])
             self.ax.set_yticks([0, 1])
             self.ax.set_xlim(left=0, right=1)
             self.ax.set_ylim(bottom=0, top=1)
-            self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
-            self.fig.patch.set_facecolor('#2D2D3F')
-            self.ax.set_facecolor('#3C3C50')
-            self.ax.spines['bottom'].set_color('#F0F0F5')
-            self.ax.spines['top'].set_color('#F0F0F5') 
-            self.ax.spines['right'].set_color('#F0F0F5')
-            self.ax.spines['left'].set_color('#F0F0F5')
-            self.ax.tick_params(axis='x', colors='#F0F0F5')
-            self.ax.tick_params(axis='y', colors='#F0F0F5')
-            self.ax.yaxis.label.set_color('#F0F0F5')
-            self.ax.xaxis.label.set_color('#F0F0F5')
-            self.ax.title.set_color('#F0F0F5')
-        self.fig.tight_layout(pad=0.5) # Added padding
+            
+            self.fig.patch.set_facecolor(primary_color)
+            self.ax.set_facecolor(card_bg_color)
+            self.ax.spines['bottom'].set_color(accent_color)
+            self.ax.spines['top'].set_color(accent_color) 
+            self.ax.spines['right'].set_color(accent_color)
+            self.ax.spines['left'].set_color(accent_color)
+            self.ax.tick_params(axis='x', colors=accent_color)
+            self.ax.tick_params(axis='y', colors=accent_color)
+            self.ax.yaxis.label.set_color(accent_color)
+            self.ax.xaxis.label.set_color(accent_color)
+            self.ax.title.set_color(accent_color)
+            self.ax.grid(True, linestyle='--', alpha=0.3, color=secondary_color)
+            
+        self.fig.tight_layout(pad=0.5)
         self.draw()
         self.current_graph_type = "historical"
 
     def plot_live_data(self, live_reminder_data):
         self.ax.clear()
+        # New theme colors
+        primary_color = '#414b53'
+        card_bg_color = '#586168'
+        accent_color = '#d4d3c8'
+        secondary_color = '#919da0'
+        data_viz_color = '#88c0d0' # For bar/line plots
+
         if live_reminder_data and len(live_reminder_data) > 1:
             time_data = [item[0] for item in live_reminder_data]
             count_data = [item[1] for item in live_reminder_data]
             
-            # Clean line, no markers
-            self.ax.plot(time_data, count_data, linestyle='-', color='#00C853', linewidth=2) 
+            self.ax.plot(time_data, count_data, linestyle='-', color=data_viz_color, linewidth=2)
             
             self.ax.set_title('Live Reminders This Session')
             self.ax.set_xlabel('Time Elapsed (seconds)')
             self.ax.set_ylabel('Cumulative Reminders')
             
             max_y = max(count_data) if count_data else 0
-            
-            # Y-axis ticks: 0 and current max count
             yticks = [0]
             if max_y > 0:
                 yticks.append(max_y)
-            
             self.ax.set_yticks(yticks)
-            # Adjust Y-limit to give some space above the max_y tick
-            self.ax.set_ylim(bottom=-0.5, top=max_y + 1.5 if max_y > 0 else 1.5) 
-            
-            self.ax.set_xlim(left=0) 
-            self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
+            self.ax.set_ylim(bottom=-0.5, top=max_y + 1.5 if max_y > 0 else 1.5)
+            self.ax.set_xlim(left=0)
+            self.ax.grid(True, linestyle='--', alpha=0.3, color=secondary_color)
 
         elif live_reminder_data and len(live_reminder_data) == 1 and live_reminder_data[0][0] == 0 and live_reminder_data[0][1] == 0:
-            # Initial state: session started, 0 reminders at t=0
-            self.ax.plot([0], [0], color='#00C853', linewidth=2) # Clean line
+            self.ax.plot([0], [0], color=data_viz_color, linewidth=2)
             self.ax.set_title('Live Reminders This Session')
             self.ax.set_xlabel('Time Elapsed (seconds)')
             self.ax.set_ylabel('Cumulative Reminders')
-            self.ax.set_ylim(bottom=-0.5, top=1.5) 
-            self.ax.set_xlim(left=0, right=60) 
-            self.ax.set_yticks([0]) # Only show 0 at the start
-            self.ax.set_xticks([0, 30, 60]) 
-            self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
-            self.ax.text(0.5, 0.6, 'Session active. Monitoring...', ha='center', va='center', fontsize=10, color='#F0F0F5', transform=self.ax.transAxes)
+            self.ax.set_ylim(bottom=-0.5, top=1.5)
+            self.ax.set_xlim(left=0, right=60)
+            self.ax.set_yticks([0])
+            self.ax.set_xticks([0, 30, 60])
+            self.ax.grid(True, linestyle='--', alpha=0.3, color=secondary_color)
+            self.ax.text(0.5, 0.6, 'Session active. Monitoring...', ha='center', va='center', fontsize=10, color=accent_color, transform=self.ax.transAxes)
         else:
-            # Fallback / Waiting for first reminder
             self.ax.set_title('Live Reminders This Session') 
-            self.ax.text(0.5, 0.5, 'Session started. Waiting for first reminder...', ha='center', va='center', fontsize=10, color='#F0F0F5', transform=self.ax.transAxes)
+            self.ax.text(0.5, 0.5, 'Session started. Waiting for first reminder...', ha='center', va='center', fontsize=10, color=accent_color, transform=self.ax.transAxes)
             self.ax.set_xlabel('Time Elapsed (seconds)')
             self.ax.set_ylabel('Cumulative Reminders')
             self.ax.set_xticks([0, 30, 60])
-            self.ax.set_yticks([0, 2, 4, 6, 8, 10]) # Keep default ticks for this empty state for now
-            self.ax.set_xlim(left=0, right=60) 
-            self.ax.set_ylim(bottom=-0.5, top=10.5) 
-            self.ax.grid(True, linestyle='--', alpha=0.3, color='#B0B0C0')
+            self.ax.set_yticks([0, 2, 4, 6, 8, 10]) # Keeping these default ticks for now, can adjust
+            self.ax.set_xlim(left=0, right=60)
+            self.ax.set_ylim(bottom=-0.5, top=10.5)
+            self.ax.grid(True, linestyle='--', alpha=0.3, color=secondary_color)
 
-        self.fig.patch.set_facecolor('#2D2D3F')
-        self.ax.set_facecolor('#3C3C50')
-        self.ax.spines['bottom'].set_color('#F0F0F5')
-        self.ax.spines['top'].set_color('#F0F0F5') 
-        self.ax.spines['right'].set_color('#F0F0F5')
-        self.ax.spines['left'].set_color('#F0F0F5')
-        self.ax.tick_params(axis='x', colors='#F0F0F5')
-        self.ax.tick_params(axis='y', colors='#F0F0F5')
-        self.ax.yaxis.label.set_color('#F0F0F5')
-        self.ax.xaxis.label.set_color('#F0F0F5')
-        self.ax.title.set_color('#F0F0F5')
-        self.fig.tight_layout(pad=0.5) # Added padding
+        self.fig.patch.set_facecolor(primary_color)
+        self.ax.set_facecolor(card_bg_color)
+        self.ax.spines['bottom'].set_color(accent_color)
+        self.ax.spines['top'].set_color(accent_color)
+        self.ax.spines['right'].set_color(accent_color)
+        self.ax.spines['left'].set_color(accent_color)
+        self.ax.tick_params(axis='x', colors=accent_color)
+        self.ax.tick_params(axis='y', colors=accent_color)
+        self.ax.yaxis.label.set_color(accent_color)
+        self.ax.xaxis.label.set_color(accent_color)
+        self.ax.title.set_color(accent_color)
+        
+        self.fig.tight_layout(pad=0.5)
         self.draw()
         self.current_graph_type = "live"
 
     def clear_graph(self): # Optional, explicit clear
         self.ax.clear()
-        self.fig.patch.set_facecolor('#2D2D3F')
-        self.ax.set_facecolor('#3C3C50')
-        self.ax.text(0.5, 0.5, 'Graph will update based on session state.', ha='center', va='center', fontsize=10, color='#F0F0F5', transform=self.ax.transAxes)
-        self.ax.set_xticks([])
-        self.ax.set_yticks([])
+        self.current_graph_type = None # Reset graph type
         self.draw()
-        self.current_graph_type = None
+
+    def update_user_info(self, email, status=None, expires_at=None):
+        self.user_email = email
+        # The UI elements for displaying this directly on DashboardView are removed.
+        # This method can still be used to store the info if needed for other purposes (e.g. tray tooltip)
+        if status and expires_at:
+            try:
+                expires_dt = datetime.fromisoformat(expires_at)
+                expires_str = expires_dt.strftime('%Y-%m-%d')
+                # Example: self.current_subscription_details = f"Subscription: {status.capitalize()} until {expires_str}"
+            except Exception:
+                # self.current_subscription_details = f"Subscription: {status.capitalize()} until {expires_at}"
+                pass # Store as is if parsing fails
+        else:
+            # self.current_subscription_details = f"Subscription Status: - for {email}"
+            pass
+
+    def open_manage_subscription(self):
+        QDesktopServices.openUrl(QUrl(MANAGE_SUBSCRIPTION_URL))
+
+    def handle_logout(self):
+        # Implement logout functionality
+        pass
 
 class DashboardView(QWidget):
     # Signal emitted with temp file path to play TTS on main thread
     tts_play = pyqtSignal(str)
-    calibration_successful_and_session_started = pyqtSignal() 
+    calibration_successful_and_session_started = pyqtSignal()
+    show_toast_signal = pyqtSignal(str, int) # New signal for toasts
 
     def __init__(self, parent=None, on_logout=None):
         super().__init__(parent)
+        self.settings = QSettings(ORGANIZATION_NAME, APPLICATION_NAME)
+        self.main_window = parent # Store reference to MainWindow
+        self.on_logout_callback = on_logout
+        self.current_email = ""
+        self.subscription_status = "unknown"
+        self.subscription_expires_at = None
+        self.is_calibrated = False # Initialize is_calibrated
+        self.app_settings = self.load_app_settings() # Load settings before _init_ui uses them
+
+        self._init_ui() # _init_ui will now use self.app_settings
+        self.show_toast_signal.connect(self._handle_show_toast)
+
+        # Initialize TTS engine in a separate thread to avoid UI freeze
+        self.tts_init_thread = threading.Thread(target=self._initialize_tts_engine, daemon=True)
+        self.tts_init_thread.start()
+
+    def _handle_show_toast(self, message, duration):
+        toast = CustomNotificationToast(message, parent=self, duration=duration)
+        toast.show_toast()
+
+    def _init_ui(self):
         self.setObjectName("DashboardViewContainer") # Added objectName
-        self.on_logout = on_logout
         self.user_email = None
         self.subscription_status_str = None
         self.webcam_thread = None
@@ -882,19 +978,24 @@ class DashboardView(QWidget):
         self.session_start_time = None # To track time for live graph
         self.settings_btn = QPushButton('Settings')
         self.settings_btn.clicked.connect(self.open_settings_dialog)
-        self.app_settings = self.load_app_settings()
+        # self.app_settings = self.load_app_settings() # Moved to __init__ before _init_ui
         # Connect TTS play signal to playback slot
         self.tts_play.connect(self._play_media)
         # Initialize TTS cache: only regenerate audio when text changes
         self._cached_tts_text = None
-        # Use a single persistent MP3 file in system temp directory
-        self._cached_tts_file = os.path.join(tempfile.gettempdir(), 'postureapp_alert.mp3')
+        self._last_tts_text = None 
+        self._cached_tts_file = os.path.join(tempfile.gettempdir(), 'postureapp_alert.mp3') # Standardized cache file path
+        
+        self.tts_engine = None # For Coqui TTS
+        # self.speaker_wav_path is now initialized within _init_ui from self.app_settings
+        self.speaker_wav_path = None 
+
         main_layout = QVBoxLayout()
         main_layout.setSpacing(24)
         main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         # Initialize last alert timestamp and interval
         self._last_alert_time = 0
-        self.alert_interval = 5  # seconds between posture deviation alerts
+        self.alert_interval = 15  # seconds between posture deviation alerts
 
         # Top buttons (Start/Stop Session, Settings, Logout)
         top_button_bar = QWidget() # Create a container for the top button bar
@@ -928,6 +1029,12 @@ class DashboardView(QWidget):
         button_layout.addWidget(self.stop_session_btn)
         button_layout.addWidget(self.settings_btn)
         button_layout.addWidget(logout_btn)
+
+        # Add reminder count label
+        self.reminder_count_label = QLabel("Reminders: 0")
+        self.reminder_count_label.setObjectName("ReminderCountLabel")
+        button_layout.addWidget(self.reminder_count_label)
+
         button_layout.addStretch()
         main_layout.addWidget(top_button_bar) # Add the button bar widget
 
@@ -1047,6 +1154,18 @@ class DashboardView(QWidget):
         # Add to __init__ of DashboardView:
         self._bad_posture_start_time = None  # Track when bad posture started
 
+        # Initialize speaker_wav_path based on current settings loaded into self.app_settings
+        default_speaker_path = resource_path("audio/Leif GW.wav") # Define a clear default
+        self.speaker_wav_path = self.app_settings.get("speaker_wav_path", default_speaker_path)
+        if not self.speaker_wav_path or not os.path.exists(self.speaker_wav_path):
+            print(f"Warning: Initial speaker WAV file '{self.speaker_wav_path}' not found or not set. Falling back to default.")
+            self.speaker_wav_path = default_speaker_path
+            if not os.path.exists(self.speaker_wav_path):
+                 print(f"Warning: Default speaker WAV '{os.path.basename(default_speaker_path)}' also not found. TTS may not use a custom speaker.")
+                 self.speaker_wav_path = None # No valid speaker WAV found
+        else:
+            print(f"Initialized with speaker WAV: {self.speaker_wav_path}")
+
     def start_calibration(self):
         if self.session_active or self.calibrating:
             return
@@ -1106,13 +1225,13 @@ class DashboardView(QWidget):
 
                     # Define ratios based on sensitivity string
                     if sensitivity_setting_str == "High":
-                        current_head_ratio = 0.05  # Stricter for High sensitivity
-                        current_shoulder_ratio = 0.05 # Stricter for High sensitivity
+                        current_head_ratio = 0.02  # Stricter for High sensitivity
+                        current_shoulder_ratio = 0.04 # Stricter for High sensitivity
                     elif sensitivity_setting_str == "Low":
-                        current_head_ratio = 0.12  # Looser for Low sensitivity
+                        current_head_ratio = 0.6  # Looser for Low sensitivity
                         current_shoulder_ratio = 0.12 # Looser for Low sensitivity
                     else: # Medium or fallback
-                        current_head_ratio = 0.08
+                        current_head_ratio = 0.04
                         current_shoulder_ratio = 0.08
                     # Primary angle deviation checks
                     head_angle_deviation = abs(current_calculated_values['head_forward'] - self.reference_angles['head_forward'])
@@ -1138,32 +1257,39 @@ class DashboardView(QWidget):
                     alert_for_shoulder = shoulder_angle_bad and shoulder_vertical_diff_bad
 
                     posture_broken = alert_for_head or alert_for_shoulder
+                    
                     if posture_broken:
                         if self._bad_posture_start_time is None:
                             self._bad_posture_start_time = now
                         bad_posture_duration = now - self._bad_posture_start_time
-                    else:
-                        self._bad_posture_start_time = None
-                        bad_posture_duration = 0
 
-                    # Only trigger notification if posture has been bad for at least 2 seconds
-                    if posture_broken and bad_posture_duration >= 2.0:
-                        if now - self._last_alert_time >= self.alert_interval:
-                            self.current_session_reminder_count += 1
-                            print(f"[DEBUG] Reminder count incremented: {self.current_session_reminder_count}")
-                            time_elapsed_seconds = now - self.session_start_time
-                            self.current_session_live_reminder_data.append((time_elapsed_seconds, self.current_session_reminder_count))
-                            self.session_graph.plot_live_data(self.current_session_live_reminder_data)
-                            notification_mode = self.app_settings.get("notification_mode", "both")
-                            alert_message = self.app_settings.get('custom_alert_message', 'Fix your posture!')
-                            # Visual notification
-                            if notification_mode in ["visual", "both"]:
-                                toast = CustomNotificationToast(alert_message, parent=self)
-                                toast.show_toast()
-                            # Audio notification
-                            if notification_mode in ["audio", "both"]:
-                                threading.Thread(target=self._speak_alert, daemon=True).start()
-                            self._last_alert_time = now
+                        # Check for alert conditions
+                        if bad_posture_duration >= 2.0: # Held bad posture for 2s
+                            if now - self._last_alert_time >= self.alert_interval: # Cooldown passed
+                                # --- This is an alert event ---
+                                self.current_session_reminder_count += 1
+                                self.reminder_count_label.setText(f"Reminders: {self.current_session_reminder_count}")
+                                
+                                time_elapsed_seconds = now - self.session_start_time
+                                self.current_session_live_reminder_data.append((time_elapsed_seconds, self.current_session_reminder_count))
+                                self.session_graph.plot_live_data(self.current_session_live_reminder_data)
+                                
+                                notification_mode = self.app_settings.get("notification_mode", "both")
+                                alert_message_text = self.app_settings.get('custom_alert_message', 'Fix your posture!')
+
+                                if notification_mode in ["visual", "both"]:
+                                    toast = CustomNotificationToast(alert_message_text, parent=self)
+                                    toast.show_toast()
+                                
+                                if notification_mode in ["audio", "both"]:
+                                    # Pass the actual alert message text to _speak_alert
+                                    threading.Thread(target=self._speak_alert, args=(alert_message_text,), daemon=True).start() 
+                                
+                                self._last_alert_time = now # Update last alert time
+                    else: # Posture is not broken
+                        self._bad_posture_start_time = None
+                        # bad_posture_duration = 0 # Not strictly needed here
+
                 except Exception as e:
                     print(f"Deviation calculation error: {e}")
 
@@ -1187,6 +1313,9 @@ class DashboardView(QWidget):
             }
             self.calib_overlay.hide()
             self.session_active = True
+            self.is_calibrated = True # Set calibrated to True
+            self.current_session_reminders = 0
+            self.reminder_count_label.setText(f"Reminders: {self.current_session_reminders}")
             print("[DEBUG] DashboardView.session_active set to True in capture_good_posture")
             self.calibrating = False
             self.start_session_btn.setEnabled(False)
@@ -1206,6 +1335,7 @@ class DashboardView(QWidget):
 
     def cancel_calibration(self):
         self.calibrating = False
+        self.is_calibrated = False # Reset calibration status
         self.calib_overlay.hide()
         self.stop_webcam()
         self.webcam_feed_label.clear()
@@ -1222,6 +1352,7 @@ class DashboardView(QWidget):
             return
 
         self.session_active = False
+        self.is_calibrated = False # Reset calibration status
         print(f"[DEBUG] DashboardView.session_active set to {self.session_active}")
         self.stop_webcam()
         print("[DEBUG] DashboardView.stop_webcam() returned")
@@ -1327,7 +1458,7 @@ class DashboardView(QWidget):
             pass
 
     def open_manage_subscription(self):
-        QDesktopServices.openUrl(QUrl("https://app.supabase.com"))
+        QDesktopServices.openUrl(QUrl(MANAGE_SUBSCRIPTION_URL))
 
     def handle_logout(self):
         try:
@@ -1347,8 +1478,8 @@ class DashboardView(QWidget):
         self.status_label.setVisible(False)
         self.session_start_time = None # Reset session start time on logout
         self.current_session_live_reminder_data = [] # Clear live data
-        if self.on_logout:
-            self.on_logout()
+        if self.on_logout_callback:
+            self.on_logout_callback()
         # Ensure graph shows historical after logout
         self.update_session_graph()
 
@@ -1358,9 +1489,38 @@ class DashboardView(QWidget):
 
     def apply_settings(self):
         old_cam_idx = self.app_settings.get("webcam_index", 0)
-        self.app_settings = self.load_app_settings()
+        old_selected_voice_file_name = self.app_settings.get("selected_voice_file", "Leif GW.wav")
+
+        self.app_settings = self.load_app_settings() # Reload all settings, including new speaker_wav_path
+
         new_cam_idx = self.app_settings.get("webcam_index", 0)
         new_show_lm_setting = self.app_settings.get("show_landmarks", True)
+        new_selected_voice_file_name = self.app_settings.get("selected_voice_file", "Leif GW.wav")
+        
+        # Update speaker_wav_path for the dashboard instance
+        default_speaker_path = resource_path("audio/Leif GW.wav") # Define a clear default
+        self.speaker_wav_path = self.app_settings.get("speaker_wav_path", default_speaker_path)
+        if not self.speaker_wav_path or not os.path.exists(self.speaker_wav_path):
+            print(f"Warning: Speaker WAV '{self.speaker_wav_path}' from settings not found. Falling back to default.")
+            self.speaker_wav_path = default_speaker_path
+            if not os.path.exists(self.speaker_wav_path):
+                 print(f"Warning: Default speaker WAV '{os.path.basename(default_speaker_path)}' also not found during settings apply. TTS speaker disabled.")
+                 self.speaker_wav_path = None
+        else:
+            print(f"Applied speaker WAV path from settings: {self.speaker_wav_path}")
+
+        # If the voice file NAME changed, clear TTS cache
+        if old_selected_voice_file_name != new_selected_voice_file_name:
+            print(f"Speaker voice file changed from '{old_selected_voice_file_name}' to '{new_selected_voice_file_name}'. Clearing TTS cache.")
+            self._cached_tts_text = None 
+            self._last_tts_text = None   
+            if self._cached_tts_file and os.path.exists(self._cached_tts_file):
+                try:
+                    os.remove(self._cached_tts_file)
+                    print(f"Removed old cached TTS file: {self._cached_tts_file}")
+                except OSError as e:
+                    print(f"Error removing old cached TTS file: {e}")
+            # _cached_tts_file path remains the same, but its content is now invalid for the new voice
 
         if self.webcam_thread:
             if old_cam_idx != new_cam_idx:
@@ -1385,6 +1545,7 @@ class DashboardView(QWidget):
         webcam_idx_setting = settings.value("webcam_index", 0)
         webcam_idx = int(webcam_idx_setting) if webcam_idx_setting is not None else 0
         show_lm = settings.value("show_landmarks", True, type=bool)
+        selected_voice_file = settings.value("selected_voice_file", "Leif GW.wav") # Default voice
 
         # Map sensitivity to degrees (High:20, Medium:30, Low:40)
         if sens == "Low":
@@ -1399,7 +1560,9 @@ class DashboardView(QWidget):
             "notification_mode": notif,
             "custom_alert_message": custom_msg,
             "webcam_index": webcam_idx,
-            "show_landmarks": show_lm
+            "show_landmarks": show_lm,
+            "selected_voice_file": selected_voice_file, # Store the raw file name
+            "speaker_wav_path": resource_path(os.path.join("resources", "audio", selected_voice_file)) # Store the full path
         }
 
     def showEvent(self, event):
@@ -1527,38 +1690,102 @@ class DashboardView(QWidget):
         # Example of how to use a QMessageBox with the new app name if needed here:
         # QMessageBox.warning(self, "Webcam Issue - Ergo", msg)
 
-    def _speak_alert(self):
-        """
-        Use Microsoft Neural voice to speak the custom alert message, regenerating only if text changes.
-        """
-        text = self.app_settings.get("custom_alert_message", "Fix your posture!")
-        # DEBUG: log alert text
-        print(f"[_speak_alert] Alert text: {text}")
-        cache_file = self._cached_tts_file
-        # Regenerate audio only if message changed or file missing
-        if text != self._cached_tts_text or not os.path.exists(cache_file):
-            # DEBUG: regenerating audio
-            print(f"[_speak_alert] Generating new TTS audio to {cache_file}")
-            # Use a fresh event loop for edge-tts
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+    def _initialize_tts_engine(self):
+        if self.tts_engine is None:
             try:
-                loop.run_until_complete(
-                    edge_tts.Communicate(text, "en-US-JennyNeural").save(cache_file)
-                )
-                self._cached_tts_text = text
+                print("Initializing Coqui TTS engine...")
+                self.show_toast_signal.emit("Downloading voice model... This may take a few minutes.", 5000)
+                
+                # Determine device for Coqui TTS
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                print(f"Attempting to initialize Coqui TTS on device: {device}")
+
+                self.tts_engine = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
+                self.tts_engine.to(device) # Move the TTS engine to the selected device
+
+                print(f"Coqui TTS engine initialized and moved to {device}.")
+                self.show_toast_signal.emit("Voice model ready!", 3000)
             except Exception as e:
-                print(f"edge-tts generation error: {e}")
-            finally:
-                loop.close()
-        # Emit signal to play cached audio file
-        self.tts_play.emit(cache_file)
+                print(f"Failed to initialize Coqui TTS engine: {e}")
+                traceback.print_exc()
+                self.tts_engine = None # Ensure it's None on failure
+                self.show_toast_signal.emit("TTS engine failed to load. Voice alerts disabled.", 5000)
+        else:
+            print("Coqui TTS engine already initialized.")
+
+    def _speak_alert(self, alert_text_to_speak): # Modified signature
+        print("[DEBUG] _speak_alert entered.") # Debug print
+        if not self.session_active or not self.is_calibrated:
+            print("[DEBUG] _speak_alert: Session not active or not calibrated. Returning.") # Debug print
+            return
+        
+        # alert_text is now passed as alert_text_to_speak
+        
+        # Check if TTS engine is ready (initialized in __init__ thread)
+        if self.tts_engine is None:
+            print("TTS engine not yet available or failed to initialize. Cannot speak alert.")
+            return
+
+        try:
+            if self._cached_tts_file and self._last_tts_text == alert_text_to_speak:
+                self.tts_play.emit(self._cached_tts_file)
+            else:
+                if self._cached_tts_file and os.path.exists(self._cached_tts_file):
+                    try:
+                        os.remove(self._cached_tts_file)
+                    except OSError as e:
+                        print(f"Error removing old cached TTS file: {e}")
+                
+                temp_audio_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav').name
+                
+                print(f"Synthesizing TTS for: '{alert_text_to_speak}'")
+                speaker_wav_arg = self.speaker_wav_path if self.speaker_wav_path and os.path.exists(self.speaker_wav_path) else None
+                
+                self.tts_engine.tts_to_file(
+                    text=alert_text_to_speak,
+                    speaker_wav=speaker_wav_arg,
+                    language='en', 
+                    file_path=temp_audio_file
+                )
+                
+                self._cached_tts_file = temp_audio_file
+                self._last_tts_text = alert_text_to_speak
+                self.tts_play.emit(self._cached_tts_file)
+
+            # REMOVED: Reminder count and graph updates are now handled in update_webcam_feed
+            # self.current_session_reminder_count += 1
+            # self.reminder_count_label.setText(f"Reminders: {self.current_session_reminder_count}")
+            # current_time_elapsed = time.time() - self.session_start_time
+            # self.current_session_live_reminder_data.append((current_time_elapsed, self.current_session_reminder_count))
+            # self.session_graph.plot_live_data(self.current_session_live_reminder_data)
+
+        except ConnectionError as e:
+            # This might have been relevant for edge_tts, less so for local Coqui unless model download fails
+            print(f"TTS Connection Error: {e}. Using cached or no audio.")
+            if self._cached_tts_file and os.path.exists(self._cached_tts_file):
+                self.tts_play.emit(self._cached_tts_file)
+        except RuntimeError as e:
+            # Catch potential runtime errors from PyTorch/TTS, e.g. CUDA issues
+             print(f"TTS Runtime Error: {e}")
+             traceback.print_exc()
+             self.show_toast_signal.emit("TTS synthesis failed. Voice alert skipped.", 5000)
+        except Exception as e:
+            print(f"Error in _speak_alert with Coqui TTS: {e}")
+            traceback.print_exc()
+            # Optionally, emit cached file if available as a fallback
+            if self._cached_tts_file and os.path.exists(self._cached_tts_file):
+                self.tts_play.emit(self._cached_tts_file)
 
     def _play_media(self, file_path):
         """
         Play the given media file using QtMultimedia and clean up after playback.
         """
         # DEBUG: beginning playback
+        print(f"[_play_media] Received request to play file: {file_path}") # Debug print
+        if not file_path or not os.path.exists(file_path):
+            print(f"[_play_media] Error: File path is invalid or file does not exist: {file_path}") # Debug print
+            return
+
         print(f"[_play_media] Playing file: {file_path}")
         player = QMediaPlayer()
         audio_output = QAudioOutput()
@@ -1568,8 +1795,12 @@ class DashboardView(QWidget):
 
         def on_status(status):
             from PyQt6.QtMultimedia import QMediaPlayer as _MP
+            print(f"[_play_media] Player status changed: {status}, for file: {file_path}") # Debug print
 
             if status == _MP.MediaStatus.EndOfMedia or status == _MP.MediaStatus.InvalidMedia:
+                if status == _MP.MediaStatus.InvalidMedia:
+                    error_string = player.errorString()
+                    print(f"[_play_media] Error playing media (InvalidMedia): {player.error()} - {error_string} for file: {file_path}") # Debug print
                 player.stop()
                 player.deleteLater()
                 audio_output.deleteLater()
@@ -1579,6 +1810,7 @@ class DashboardView(QWidget):
                 ]
 
         player.mediaStatusChanged.connect(on_status)
+        player.errorOccurred.connect(lambda error, error_string: print(f"[_play_media] QMediaPlayer errorOccurred: {error} - {error_string} for file: {file_path}")) # Debug print
         player.setSource(QUrl.fromLocalFile(file_path))
         player.play()
         # Keep reference to prevent GC
